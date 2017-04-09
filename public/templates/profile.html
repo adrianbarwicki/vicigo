@@ -1,0 +1,215 @@
+
+		<div class="container">
+
+			<!-- INTRODUCTION ROW -->
+			<div class="row">
+		<div class="col-xs-12">
+			<div class="col-xs-12 col-sm-3 col-md-2">
+				<img ng-if="profile.profile_image_url" ng-click="clickProfilePic(user.id,profile.user_id)" id="profilePic" fallback-src="{{'/img/avatar.png'}}" class="img-circle img-thumbnail-avatar-big image-center" ng-src="{{profile.profile_image_url}}">
+				<img ng-if="!profile.profile_image_url" ng-click="clickProfilePic(user.id,profile.user_id)" id="profilePic" class="img-circle img-thumbnail-avatar-big image-center" ng-src="/img/avatar.png">
+			</div>
+		<div class="pull-left col-xs-12 col-sm-9 col-md-10">
+			<h1 class="text-center-sm">
+				<a ng-if="profile.user_id == user.id" href="#" editable-text="profile.name" onbeforesave="updateProfileName($data)">
+					{{ profile.name }}
+				</a>
+				<span ng-if="profile.user_id !== user.id">{{ profile.name }}</span>
+			</h1>	
+
+			<p class="text-center-sm">
+				<span ng-if="profile.user_id == user.id && !profile.title" href="#" editable-text="profile.title" onbeforesave="updateProfileTitle($data)"><i class="fa fa-pencil-square-o"></i> add title</span>
+				<span ng-if="profile.user_id == user.id && profile.title" href="#" editable-text="profile.title" onbeforesave="updateProfileTitle($data)">{{profile.title}}</span>
+				<span ng-if="profile.user_id !== user.id">{{ profile.title }}</span>
+			</p>
+
+			<div class="row">
+					<ul class="list-unstyled list-inline" style="padding:3px">
+						<li class=" bold middle-size side-padding" ng-click="showFeeds()"><a href="#"><span ng-bind="profile.feeds_count"></span> <small>Posts</small></a></li>
+						<li class="bold middle-size side-padding" ng-click="showFollowers()"><a href="#"><span ng-bind="profile.followers_count"></span> <small>Followers</small></a></li>
+						<li class="bold middle-size side-padding" ng-click="showFollowing()"><a href="#"><span ng-bind="profile.following_count"></span> <small>Following</small></a></li>
+						<li ng-if="profile.networks.length" class="bold middle-size side-padding"><a ng-href="{{profile.networks[0].url}}" target="_blank"><i class="fa fa-facebook"></i></li>
+						<li class="bold middle-size side-padding hidden" ng-click="showHashtags()"><a href="#"><span ng-bind="profile.hashtag_count"></span> <small>Hashtags</small></a></li>
+					</ul>
+			</div>
+
+	<button ng-click="follow(profile.user_id)" ng-if="!profile.alreadyFollowing && user.id !== profile.user_id" class="btn btn-default btn-lg">FOLLOW</button>
+      <button ng-click="unfollow(profile.user_id)" ng-if="profile.alreadyFollowing && user.id !== profile.user_id" class="btn btn-success btn-lg">UNFOLLOW</button>
+	
+				</div>
+
+				</div>
+</div>
+					<div class="row">
+
+						
+						<div class="col-xs-12">
+							<ul class="list-unstyled list-inline text-center">
+								<li class="hashtag pointer" ng-repeat="hashtag in profile.hashtags" ng-click="fetchFeeds({hashtag:hashtag.hashtag, page:0})">
+									<a>#<span ng-bind="hashtag.hashtag"></span></a>
+								</li>
+							</ul>
+						</div>
+
+
+					</div>
+				</div>
+
+			</div>
+
+
+
+			<!-- END INTRODUCTION ROW -->
+			<hr>
+		</div>
+
+
+<div class="container">
+	<div class="row">
+		<div class="col-xs-12 col-sm-3 text-center pointer" ng-repeat="hashbook in hashbooks" ui-sref="hashbook.list({blogSlug : hashbook.slug})">
+			<div style="height:80px;">
+				<img ng-src="{{hashbook.bg_picture}}" style="height:80px;width:90%;">
+			</div>
+			<strong>{{hashbook.title}}</strong>
+		</div>
+	</div>
+</div>
+<hr>
+
+<div class="container">
+
+
+
+
+	<div style="min-height:350px;">
+
+
+
+		<div ng-if="!feeds.length && user.id == profile.user_id" class="text-center">
+			<h2>
+				 Add few photos and tag them!
+		 </h2>
+			<h3>
+					It will make things interesting!
+			  </h3>
+		</div>
+
+		
+		<div ng-if="hashtag&&showProfileTab == 'feeds'" class="text-center">
+			<h2>
+				 <strong>#{{ hashtag }}</strong> <button class="btn btn-default btn-sm" ng-click="fetchFeeds({hashtag:null,page:0})">×</button>
+		  </h2>
+		</div>
+
+
+
+		<div ng-if="showProfileTab=='feeds'">
+
+
+			<div ng-if="user.id==profileId">
+
+
+				<div class="row" ng-repeat="draft in drafts">
+					<div class="push feed">
+
+						<div class="panel panel-info">
+							<!-- HEADER -->
+							<div class="panel-heading">
+								<span class="fa fa-hashtag"></span>
+								<button class="close" ng-click="removePost(draft,true,$index)">×</button>
+							</div>
+							<!-- END HEADER -->
+
+							<div class="panel-body image-feed-body">
+
+
+
+								<!-- IMAGE BODY href="/post/{{feed.id}}" -->
+								<div class="feed-body">
+									<lazy-img class="lazy" ng-src="{{trustSrc(draft.image_url)}}" alt="image">
+										</a>
+								</div>
+								<!-- END BODY -->
+
+							</div>
+
+							<!-- footer -->
+							<div class="bold modal-footer btn btn-primary btn-block text-center" ng-click="editPhoto(draft)">
+								TAG IT!
+							</div>
+							<!-- END OPTIONS -->
+
+						</div>
+						<!-- end footer-->
+					</div>
+
+
+				</div>
+
+
+
+			</div>
+
+			<ng-include src="'templates/partials/feed-angular.html'" />
+		</div>
+
+		<div class="text-center width640 block-center" ng-if="showProfileTab=='hashtags'">
+			<h3 class="bold text-center">
+				Followed hashtags
+			</h3>
+			<hr>
+			<div class="row" ng-if="!followedHashtags.length">
+				<span class="muted">no hashtags here</span>
+			</div>
+			<div class="row" ng-repeat="hashtag in followedHashtags">
+				<ul class="list-unstyled list-inline">
+					<li>
+						<a href="#" ng-click="unfollowHashtag(hashtag.hashtag,$index)" ng-if="user.id == profileId">×</a>
+						<a class="bold" ui-sref="vicigo.hashtag({hashtag:hashtag.hashtag})">#{{hashtag.hashtag}}</a>
+					</li>
+				</ul>
+			</div>
+		</div>
+
+
+		<div ng-if="showProfileTab=='followers' || showProfileTab=='following'" >
+			<div class="width640 block-center">
+			<h3 class="bold text-center" ng-if="showProfileTab=='followers'">Followers</h3>
+			<h3 class="bold text-center" ng-if="showProfileTab=='following'">Following</h3>
+			<div class="row" ng-repeat="followGuy in followGuys">
+				<hr>
+				
+					
+
+					<!-- AUTHOR REFERENCES -->
+				<div class="pull-left width321" >
+					<!-- AUTHOR IMAGE -->
+					<a ui-sref="vicigo.profile({profileId:followGuy.id})">
+						<img class="img-circle img-thumbnail-avatar-small" fallback-src="/img/avatar.png" ng-src="{{followGuy.profile_image_url ? followGuy.profile_image_url : '/img/avatar.png'}}">
+					</a>
+					<!-- END AUTHOR IMAGE -->
+					
+						<strong style="margin-top:50px;"><a ui-sref="vicigo.profile({profileId:followGuy.id})">{{followGuy.name}}</a></strong>
+							
+							<!-- AUTHOR TITLE -->
+						<small class="text-muted" ng-if="followGuy.title">{{followGuy.title}}</small>
+						<!-- END AUTHOR TITLE -->
+				</div>
+						
+						<!-- END AUTHOR REFERENCES -->
+					
+					
+					
+
+					<div class="pull-right" ng-if="!followGuy.alreadyFollowing && user.id && user.id !==followGuy.id">
+						<a href="#" class="btn btn-success" ng-click="follow(post.author_id)">FOLLOW</a>
+					</div>
+
+		
+			</div>
+		</div>
+</div>
+
+
+	</div>
+
+</div>

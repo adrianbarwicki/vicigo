@@ -1,0 +1,117 @@
+<div class="visible-xs" style="height:50px;"></div>
+
+
+<div class="container" class="block-center">
+
+		<ng-include ng-if="!hashtag" src="'/templates/partials/feed-actions.html'"></ng-include>
+
+<!-- FILTER OPTION -->
+		<div class="row" ng-if="hashtag">
+			<h1 class="text-center" ng-if="hashtag">
+				<strong>
+					#<span ng-bind="hashtag"></span>
+				</strong> 
+			 </h1>
+			<hr>
+			<h3>
+				<ul class="horiontal-list text-center push hidden">
+					<li ng-class="{'selected' : sortType == 'hot' }" class="cursor-pointer" ng-click="sort('hot')">#hot</li>
+					<li ng-class="{'selected' : sortType == 'best' }" class="cursor-pointer" ng-click="sort('best')">#best</li>
+					<li ng-class="{'selected' : sortType == 'new' }" class="cursor-pointer" ng-click="sort('new')">#new</li>
+				</ul>
+			</h3>
+		</div>
+
+<!-- FILTER OPTION END -->
+</div>
+	<div style="height:40px;"></div>
+<div class="container-fluid" class="block-center" style="max-width:1300px;">	
+	
+<div class="col-lg-3 hidden-xs hidden-sm hidden-md" >
+	<div ng-if="user.id && hidden">
+	<h5 class="bold">
+		trending hashtags
+	</h5>
+	<hr>
+	<ul class="list-unstyled">
+	<li  ng-repeat="hashtag in recommendedHashtags track by $index" style="padding-top:7px;">
+		<div>
+		
+		<div class="pull-left">
+		<a ui-sref="vicigo.hashtag({hashtag:hashtag.hashtag})" >#{{hashtag.hashtag}}	</a>
+			<br> <i class="fa fa-bolt muted" ng-if="hashtag.promoted">Promoted</i>
+
+		</div>
+		
+			
+		<button ng-click="followHashtag(hashtag.hashtag,$index)" class="btn btn-sm btn-default pull-right">
+			Follow
+		</button>	
+		</div>
+		
+		<hr>
+	</li>
+	</ul>
+</div>
+	</div>
+
+	
+<div class="row hidden" style="padding:10px;" ng-if="user.id==2">
+  <div class="panel panel-default feed padding">
+		<form>
+			 <div class="panel-body"><textarea class="form-control" id="quick-thought" rows="3" ng-model="thought"></textarea></div>
+   		 <div class="panel-footer"><button ng-click="postThought(thought)" type="submit" class="btn btn-primary btn-block">Post a thought</button></div>
+		</form>
+   
+  </div>
+</div>
+	
+
+	<div class="col-lg-6 row" >
+	<div class="block-center">
+			<ng-include src="'templates/partials/feed-angular.html'">
+	</div>	
+	</div>
+
+
+		
+<div class="hidden-xs hidden-sm pull-right hidden" style="max-width:300px">
+	<div ng-if="user.id" class="pull-left">
+	<h5 class="bold">
+		top accounts
+	</h5>
+	<hr>
+	<ul class="list-unstyled">
+	<li  ng-repeat="profile in recommendedProfiles track by $index" style="padding-top:7px;">
+		<div>
+		
+
+
+
+			
+			
+		<div class="pull-left">
+			
+		  		<a>
+            <img ng-if="profile.avatar" class="img-circle img-thumbnail-avatar-smallest" fallback-src="{{'/img/avatar.png'}}" ng-src="{{profile.avatar}}">
+            <img ng-if="!profile.avatar" class="img-circle img-thumbnail-avatar-smallest" ng-src="/img/avatar.png">
+          </a>	
+			
+		<a class="bold" ui-sref="vicigo.profile({profileId: profile.profile_id})">{{profile.username}}</a>
+			<br> <i class="fa fa-bolt muted" ng-if="profile.promoted">Promoted</i>
+		</div>
+		
+			
+		<button ng-click="follow(profile.profile_id,$index)" class="btn btn-sm btn-default pull-right">
+			Follow
+		</button>	
+		</div>
+		
+		<hr>
+	</li>
+	</ul>
+</div>
+	</div>
+		
+		
+</div>

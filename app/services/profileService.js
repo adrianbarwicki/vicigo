@@ -104,55 +104,60 @@ var changeUsername = function(user_id, username, callback) {
 
 
 var getFreeUsername = function(usernameTemplate, callback) {
-
-	if(!usernameTemplate ){
-		callback("bad request");
-		return;
+	if (!usernameTemplate) {
+		return callback("bad request");
 	}
 	
-	if(usernameTemplate.length < 4 ){
-		callback("too short");
-		return;
+	if (usernameTemplate.length < 4 ) {
+		return callback("too short");
 	}
 	
 	var resp = purifyUsername(usernameTemplate);
+
 	var username;
-	if(resp.err){
+
+	if (resp.err) {
 		username = "notcool";
 	} else {
 		username = resp.username;
 	}
 	
 	
-var lookForUsername = true;
-var count = 1;	
+	var lookForUsername = true;
+	var count = 1;	
 
-async.whilst(
-    function () { return lookForUsername; },
-    function (callback) {
+	async.whilst(
+		() => lookForUsername,
+		callback => {
 			console.log("Checking if username is free: ", username);
-      var sql = "SELECT * FROM user_profile WHERE name = ?";
-			pool.query(sql, [username], function(err, result) {
-		if (err){
-			callback(err);
-			console.error(err);
-		} else {
-			console.log(result.length);
-			console.log(username);
-			if(result.length){
-				count + 1;
-				username = username + String(count);
-				callback();
-			} else {
+
+			var sql = "SELECT * FROM user_profile WHERE name = ?";
+
+			pool.query(sql, [username], (err, result) => {
+				if (err) {
+					console.error(err);
+
+					return callback(err);
+				}
+
+				if (result.length) {
+					return callback({ code: 'USERNAME_TAKEN' });
+				}
+
+				if (result.length) {
+					count + 1;
+					username = username + String(count);
+
+					return callback();
+				}
+
 				lookForUsername = false;
+
 				callback();
-			}
-		}
-    });
-		},
-    function (err) {
-       callback(err,username);
-    });
+			});
+		}, err => {
+			callback(err,username);
+		});
 };
 	
 

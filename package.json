@@ -4,6 +4,7 @@
   "description": "Social media",
   "main": "app-vicigo.js",
   "dependencies": {
+    "ViciAuthSDK": "git+https://github.com/viciqloud/viciauth-sdk.git",
     "angular": "^1.6.1",
     "angular-ui-router": "^0.3.2",
     "angularjs": "0.0.1",

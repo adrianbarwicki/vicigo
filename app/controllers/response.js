@@ -28,24 +28,29 @@ var authHeaders = function(req) {
 		
 };
 
-var readHeaders = function(req, res, next) {
+const readHeaders = (req, res, next) => {
 	var token = authHeaders(req);
-	if(!token){
+	
+	if (!token) {
 		return next();
 	}
-	ViciAuth.checkToken(token,function(err,rUser){
-		if(rUser){
+
+	ViciAuth.checkToken(token, (err, rUser) => {
+		if (err) {
+			return res.status(502).send(err);
+		}
+
+		if (rUser) {
 			req.user = { id : rUser.userId };
+			
 			return next();
 		} else {
 			return next();
 		}
 	});
-	
 };
 
 var isLoggedIn = function(req, res, next) {
-
 	var AUTH_METHOD, token;
 	if( req.headers['x-auth-token']  || req.body["x-auth-token"] ) {
 			AUTH_METHOD = "tokens";

@@ -21,36 +21,31 @@ function logLogin(userId,medium) {
 }
 
 function createNewAccount(userId,username,profile,callback) {
-
   var newProfile = {}; 
-	console.log(userId,username,profile,callback);
 
   newProfile.user_id = userId;
 	
-	if(username){
+	if (username) {
 		 newProfile.name = username;
 	}
   
-  if(profile.profileImageUrl){
+  if (profile.profileImageUrl) {
     newProfile.profile_image_url = profile.profileImageUrl;
   }
 	
-  if(profile.gender){
+  if (profile.gender) {
     newProfile.gender = profile.gender;
   }
 	
-  if(profile.fullname){
+  if (profile.fullname) {
     newProfile.fullname = profile.fullname;
   }
-  
-	
-	
-	
-  async.waterfall([
 
-    function(callback) {
+  async.waterfall([
+    callback => {
       var sql = "INSERT INTO user_profile SET ?";
-      pool.query(sql, newProfile, function(err, result) {
+
+      pool.query(sql, newProfile, (err, result) => {
         if (err) {
           return callback(err);
         }
@@ -58,14 +53,12 @@ function createNewAccount(userId,username,profile,callback) {
         return callback();
       });
     },    
-  ], function(err) {
-		console.log(callback);
-		if(callback){
+  ], err => {
+		if (callback) {
 			callback(err);
-		}else{
+		} else {
 			console.log("No callback");
 		}
-    
   });
 }
 

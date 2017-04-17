@@ -11,13 +11,9 @@ AWS.config.update({
 	secretAccessKey: process.env.VICIGO_AWS_SECRET
 });
 
-
-
 var s3 = new AWS.S3();
 
-
 var processImageBuffer = ImageMethods.processImageBuffer;
-
 
 var uploadImage = function(params, callback) {
       var opt = {};

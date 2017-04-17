@@ -43,25 +43,27 @@ module.exports = function(app, passport) {
 		}
 
 		async.waterfall([
-			function(callback) {
-				ViciAuth.localSignup(email, password, function(err, rUser) {
+			callback => {
+				ViciAuth.localSignup(email, password, (err, rUser) => {
 					if (err) {
 						return callback(err);
-					} else {
-						console.log(rUser);
-						NewUser = rUser;
-						return callback();
 					}
+
+					NewUser = rUser;
+
+					return callback();
 				});
 			},
-
-			function(callback) {
+			function (callback) {
 				var uname = req.body.username;
-				ProfileService.getFreeUsername(uname, function(err, uname) {
+
+				ProfileService.getFreeUsername(uname, (err, uname) => {
 					if (err) {
 						return callback(err);
 					}
+
 					username = uname;
+
 					return callback();
 				});
 			},
@@ -69,21 +71,19 @@ module.exports = function(app, passport) {
 				AuthService.createNewAccount(NewUser.userId, username, {}, function(err, rNewUser) {
 					if (err) {
 						return callback(err);
-					} else {
-
-						return callback();
 					}
+
+					return callback();
 				});
 			}
-		], function(err) {
+		], err => {
 			if (err) {
 				return resService.sendResponse(res, err);
-			} else {
-				req.login(NewUser.userId, function(err) {
-					return resService.sendResponse(res, err, NewUser);
-				});
 			}
 
+			req.login(NewUser.userId, err => {
+				return resService.sendResponse(res, err, NewUser);
+			});
 		});
 	});
 

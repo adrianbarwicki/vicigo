@@ -14,12 +14,17 @@ var ViciAuth = require('../config/vqAuthProvider');
 
 module.exports = function(app, passport) {
 
+	app.post('/viciauth/logout', (req, res) => {
+		ViciAuth.destroyToken(req.headers['x-auth-token'], err => {
+			return resService.sendResponse(res, err);
+		})
+	});
+
 	app.post('/viciauth/signup', function(req, res, next) {
 		var email = req.body.email;
 		var username = req.body.username;
 		var password = req.body.password;
 		var NewUser, Token;
-
 
 		if (!req.body.email) {
 			return resService.sendResponse(res, {

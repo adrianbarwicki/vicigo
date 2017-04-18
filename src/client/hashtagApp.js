@@ -924,9 +924,11 @@ var vicigoApp = angular.module("hashtag-app", [ uiRouter, 'ui.bootstrap', infini
 
 		$rootScope.logoutMe = function() {
 			ViciAuth.logout();
-			$http.get("/api/me/logout").then(function(response) {
+			
+			$http.post("/viciauth/logout").then(function(response) {
 				$rootScope.user = false;
 				$rootScope.fetchingNotifs = false;
+
 				$state.go("starter.welcome");
 			});
 		};

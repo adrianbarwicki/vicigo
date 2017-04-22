@@ -35,13 +35,20 @@ const readHeaders = (req, res, next) => {
 		return next();
 	}
 
-	ViciAuth.checkToken(token, (err, rUser) => {
+	ViciAuth
+	.checkToken(token, (err, rUser) => {
 		if (err) {
+			if (err.err && err.err.code === 'WRONG_TOKEN') {
+				return next();
+			}
+
 			return res.status(502).send(err);
 		}
 
 		if (rUser) {
-			req.user = { id : rUser.userId };
+			req.user = { 
+				id: rUser.userId
+			};
 			
 			return next();
 		} else {
@@ -50,31 +57,33 @@ const readHeaders = (req, res, next) => {
 	});
 };
 
-var isLoggedIn = function(req, res, next) {
+var isLoggedIn = (req, res, next) => {
 	var AUTH_METHOD, token;
-	if( req.headers['x-auth-token']  || req.body["x-auth-token"] ) {
-			AUTH_METHOD = "tokens";
-			token = authHeaders(req);
-	}else{
+
+	if (req.headers['x-auth-token'] || req.body["x-auth-token"]) {
+		AUTH_METHOD = "tokens";
+
+		token = authHeaders(req);
+	} else {
 		AUTH_METHOD = "sessions";
 	}
-	
-	
 
-
-	if(AUTH_METHOD=="tokens"){
-	if(!token){
-		return res.status(401).send("Unauthorized");
-	}
-
-	ViciAuth.checkToken(token,function(err,rUser){
-		if(rUser){
-			req.user = { id : rUser.userId };
-			return next();	
-		} else {
-			return res.status(401).send("Token not valid");
+	if (AUTH_METHOD === "tokens"){
+		if (!token) {
+			return res.status(401).send("Unauthorized");
 		}
-	});
+
+		ViciAuth.checkToken(token, (err, rUser) => {
+			if (rUser) {
+				req.user = { 
+					id: rUser.userId 
+				};
+
+				return next();	
+			} else {
+				return res.status(401).send("Token not valid");
+			}
+		});
 	} 
 	
 	if(AUTH_METHOD=="sessions"){

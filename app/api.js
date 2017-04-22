@@ -169,7 +169,8 @@ module.exports = function(app) {
 
 	app.get('/api/feeds', responseController.readHeaders, function(req, res) {
 		req.query.userId = req.user ? req.user.id : false;
-		FeedController.getFeed(req.query, function(err, rFeed) {
+
+		FeedController.getFeed(req.query, (err, rFeed) => {
 			responseController.sendResponse(res, err, rFeed);
 		});
 	});
@@ -571,72 +572,63 @@ module.exports = function(app) {
 		});
 	});
 
-		app.post('/upload/image', isLoggedIn, multer().single('file'), function(req, res) {
-			if (!req.file) {
-				return res.status(403).send('expect 1 file upload named file1').end();
-			}
+	app.post('/upload/image', isLoggedIn, multer().single('file'), function(req, res) {
+		if (!req.file) {
+			return res.status(403).send('expect 1 file upload named file1').end();
+		}
 			
 		async.waterfall([
 			callback => {
-						picController.processAndSaveImage(req.file, {
-							userId: req.user.id,
-							noCrop : req.query.postId
-						}, function(err,rPost) {
-								return callback(err,rPost);
-						});
+				picController
+				.processAndSaveImage(req.file, {
+					userId: req.user.id,
+					noCrop : req.query.postId
+				}, (err, rPost) => {
+					return callback(err,rPost);
+				});
 			},
 			(Post, callback) => {
-						if(req.query.postId && req.query.isBackground){
-							postController.setBackgroundPicture(req.query.postId,req.user.id,Post.image_bg_url,function(err){
-								return callback(err,Post);
-							});
-						} else if (req.query.hashbookId&&req.query.isBackground){
-							BlogService.setBackgroundPicture(req.query.postId,req.user.id,Post.image_bg_url,function(err){
-								return callback(err,Post);
-							});
-						} else if (req.query.isProfileAvatar){
-							profileController.setProfileImage(req.user.id,Post.image_avatar_url,function(err){
-								return callback(err,Post);
-							});
-						} else {
-							
-						if (req.query.postId) {
-							Post.parent_id = req.query.postId;
-							Post.post_type_id = 5;
-						} else {
-							Post.post_type_id = 4;
-						}
-							
-						Post.owner_user_id = req.user.id;
-
-						Post.status = 0;
-
-						postController.submit(Post,function(err,rPost){
-							return callback(err,Post,rPost);
-						});
+				if(req.query.postId && req.query.isBackground) {
+					postController
+					.setBackgroundPicture(req.query.postId,req.user.id,Post.image_bg_url, err => {
+						return callback(err,Post);
+					});
+				} else if (req.query.hashbookId&&req.query.isBackground) {
+					BlogService
+					.setBackgroundPicture(req.query.postId,req.user.id,Post.image_bg_url, err => {
+						return callback(err,Post);
+					});
+				} else if (req.query.isProfileAvatar) {
+					profileController
+					.setProfileImage(req.user.id, Post.image_avatar_url, err => {
+						return callback(err,Post);
+					});
+				} else {
+					if (req.query.postId) {
+						Post.parent_id = req.query.postId;
+						Post.post_type_id = 5;
+					} else {
+						Post.post_type_id = 4;
 					}
-			}
-		], function(err, Image, rPost){
-							if(err){
-								return responseController.sendResponse(res,err);
-							}
-			
-							var link;
-							if(req.query.isProfileAvatar){
-								link = Image.image_avatar_url
-							} else if (req.query.isBackground){
-								link = Image.image_bg_url
-							} else if (req.query.postId && !req.query.isBackground){
-								link = Image.image_source_url
-							} else {
-								link = Image.image_md_url;
-							}
 						
-							responseController.sendResponse(res,err,{
-								postId: rPost ? rPost.post_id : false,
-								link: link,
-							});
-		});
+					Post.owner_user_id = req.user.id;
 
+					Post.status = 0;
+
+					postController.submit(Post, (err,rPost) => {
+						return callback(err, Post, rPost);
+					});
+				}
+			}
+		], (err, Image, rPost) => {
+			if (err) {
+				return responseController.sendResponse(res,err);
+			}
+
+			responseController.sendResponse(res, err, {
+				postId: rPost ? rPost.post_id : false,
+				link: Image ? Image.image_url : '',
+			});
+		});
 	});
 };

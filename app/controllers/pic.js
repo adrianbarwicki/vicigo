@@ -63,7 +63,7 @@ var processAndSaveImage = function(file,params,callback){
 							options.width = dim[0];
 							options.height = dim[1];
 
-							return callback(err, new Buffer(minImageBuffer));
+							return callback(null, new Buffer(minImageBuffer));
 					},
 					(buffer, callback) => {
 							var dimCode = !dim[0] && !dim[1] ? 'source' : dim[0]+"x"+dim[1];

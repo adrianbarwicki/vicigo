@@ -32,75 +32,78 @@ var processAndSaveImage = function(file,params,callback){
 		// [150,150,"avatar"],
 		// [320,320,"xs"],
 		// [414,414,"sm"],
-		[ 640, 640, "md"],
-		// [1200,630,"bg"],
+		[ 640, 640, "md" ],
+		[ 1200, 630, "bg" ]
 		// [1280,1280,"lg"],
 		// [64,64,"icon"]
 	];
 			
 	async.waterfall([
 		callback => {
-				if(imageBuffer.length < 1000000) {
+				if (imageBuffer.length < 1000000) {
 					return callback(null, imageBuffer);
 				}
 			
-				sharp(imageBuffer).resize(1200, null).toBuffer(function(err, minBuffer) {
-   						if(err) {
-							console.error("[SHARP ERROR] Proccessing error");
-							console.error(err);
+				sharp(imageBuffer).resize(1200, null)
+				.toBuffer((err, minBuffer) => {
+					if (err) {
+						console.error("[SHARP ERROR] Proccessing error");
+						console.error(err);
 
-							return callback(err);
-						} else {
-							return callback(null, minBuffer);
-						}
+						return callback(err);
+					} else {
+						return callback(null, minBuffer);
+					}
   			  	});
 		},
 		(minImageBuffer,callback) => {
+			async.eachSeries(dims, (dim, callback) => {
+					async.waterfall([
+						callback => {
+								options.width = dim[0];
+								options.height = dim[1];
 
-		 async.eachSeries(dims, (dim, callback) =>{
-				async.waterfall([
-					callback => {
-							options.width = dim[0];
-							options.height = dim[1];
+								return callback(null, new Buffer(minImageBuffer));
+						},
+						(buffer, callback) => {
+								var dimCode = !dim[0] && !dim[1] ? 'source' : dim[0]+"x"+dim[1];
+								var key =  "img/" + options.userId + "/" + dimCode + "/" + randtoken.generate(50) + "." + options.outputFormat;
+								
+								UploadService.uploadImage({
+									body: buffer,
+									key: key
+								}, (err, loc_path) => {
+									if (err) {
+										console.error(err);
 
-							return callback(null, new Buffer(minImageBuffer));
-					},
-					(buffer, callback) => {
-							var dimCode = !dim[0] && !dim[1] ? 'source' : dim[0]+"x"+dim[1];
-							var key =  "img/"+options.userId + "/" + dimCode + "/" + randtoken.generate(50) + "." + options.outputFormat;
-							
-							UploadService.uploadImage({
-								body: buffer,
-								key: key
-							}, function(err,loc_path){
-								if(err){
-									console.error(err);
-									return callback(err);
-								}
+										return callback(err);
+									}
 
 									imagePost["image_" + dim[2] + "_url"] = loc_path;
 
-									if(dim[0] == 640){
+									if (dim[0] === 640) {
 										imagePost.image_url = loc_path;
 									}
 
-									return callback(err,loc_path);
-							});
-					},
-					(locPath, callback) => PicService.createImage({
-						user_id : params.userId,
-						image_url : locPath,
-						width : dim[0],
-						height : dim[1],
-						type : dim[2]
-					}, err => callback(err)),	
-				], err => callback(err));
-			}, err => callback(err,imagePost));
-				
-			}],function(err,rImagePost){
-					return callback(err,rImagePost);
-			});
+									return callback(err, loc_path);
+								});
+						},
+						(locPath, callback) => {
+							PicService.createImage({
+								user_id: params.userId,
+								image_url: locPath,
+								width: dim[0],
+								height: dim[1],
+								type: dim[2]
+							}, err => err && console.error(err));
 
+							callback();
+						}
+					], err => callback(err));
+				}, err => callback(err, imagePost));
+			}], (err, rImagePost) => {
+					return callback(err, rImagePost);
+			});
 }
 
 module.exports = {

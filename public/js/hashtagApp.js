@@ -63,7 +63,7 @@
 /******/ 	__webpack_require__.p = "";
 /******/
 /******/ 	// Load entry module and return exports
-/******/ 	return __webpack_require__(__webpack_require__.s = 21);
+/******/ 	return __webpack_require__(__webpack_require__.s = 23);
 /******/ })
 /************************************************************************/
 /******/ ([
@@ -4692,7 +4692,7 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.default = feed;
 
-var _template = __webpack_require__(13);
+var _template = __webpack_require__(15);
 
 var _template2 = _interopRequireDefault(_template);
 
@@ -4919,6 +4919,177 @@ exports.default = DraftsCtrl;
 
 
 Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+var EditorCtrl = function EditorCtrl($rootScope, $state, $scope, $stateParams, $http, $timeout, ViciAuth) {
+    _classCallCheck(this, EditorCtrl);
+
+    $scope.draft = {};
+    $scope.ready = false;
+    $scope.Saving = {
+        body: false,
+        title: false
+    };
+
+    $scope.publishPost = function (postId) {
+        $http.put("/api/draft/" + postId + "/publish").then(function (response) {
+            if (response.status == 400) {
+                if (response.data.code == "POST_TOO_SHORT") {
+                    return toastr.info("Your story is too short. The minimum number of characters is 300.");
+                }
+            }
+            if (response.status == 200) {
+                toastr.success("You have successfully published your story.");
+                $timeout(function () {
+                    $state.go("vicigo.post", {
+                        postId: postId
+                    });
+                }, 1500);
+            }
+
+            return toastr.warning(JSON.stringify(response.data));
+        });
+    };
+
+    var initEditor = function initEditor(postId) {
+        if (!postId) {
+            alert("Editor cannot be initialized");
+        }
+
+        $("#description").tagit({
+            afterTagAdded: function afterTagAdded(event, ui) {
+                if ($scope.ready) {
+                    $scope.saveDraftElement("hashtags");
+                }
+            }
+        });
+
+        $scope.draft.hashtags.forEach(function (hashtag) {
+            $("#description").tagit("createTag", hashtag.hashtag);
+        });
+
+        $('#title').froalaEditor({
+            key: 'krlenofG5hcj1==',
+            toolbarInline: true,
+            charCounterMax: 50,
+            countCharacters: true,
+            alwaysVisible: false,
+            buttons: [],
+            allowComments: false,
+            allowScript: false,
+            allowStyle: false,
+            plainPaste: true,
+            allowedAttrs: [],
+            placeholderText: "Title"
+        });
+
+        $('#body').froalaEditor({
+            key: 'krlenofG5hcj1==',
+            imageUploadURL: "/upload/image?postId=" + postId,
+            heightMin: 260,
+            imageDefaultWidth: 640,
+            imagePaste: false,
+            toolbarButtons: ['bold', 'italic', 'underline', 'insertLink', 'insertImage', 'insertVideo', 'quote', 'insertHR', "html"],
+            requestHeaders: {
+                "X-Auth-Token": ViciAuth.getAuthToken()
+            },
+            placeholder: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
+        });
+
+        $('#body').froalaEditor('html.set', $scope.draft.post_body ? $scope.draft.post_body : "");
+        $('#body').on('froalaEditor.contentChanged', function (e, editor) {
+            if ($scope.Saving.body) clearTimeout($scope.Saving.body);
+            $scope.Saving.body = setTimeout(function () {
+                $scope.saveDraftElement("body");
+            }, 1500);
+        });
+
+        $('#title').froalaEditor('html.set', $scope.draft.post_title ? $scope.draft.post_title : "");
+        $('#title').on('froalaEditor.contentChanged', function (e, editor) {
+            if ($scope.Saving.title) {
+                clearTimeout($scope.Saving.title);
+            }
+
+            $scope.Saving.title = setTimeout(function () {
+                $scope.saveDraftElement("title");
+            }, 1500);
+        });
+
+        var backgroundImageDropzone = new Dropzone("#backgroundImageDropzone", {
+            url: "/upload/image?isBackground=true&postId=" + postId,
+            maxFiles: 10,
+            thumbnailWidth: null,
+            previewTemplate: document.querySelector('#preview-template').innerHTML,
+            clickable: '#uploadPostBackground'
+        });
+
+        backgroundImageDropzone.on("sending", function (file, xhr) {
+            xhr.setRequestHeader("X-Auth-Token", ViciAuth.getAuthToken());
+        });
+
+        backgroundImageDropzone.on("success", function (file, response) {
+            $scope.draft.post_image_url = response.link;
+            $scope.$digest();
+        });
+
+        $scope.ready = true;
+    };
+
+    var loadPostDraft = function loadPostDraft(postId) {
+        $http.get(postId ? "/api/post/" + postId : "/api/draft").then(function (response) {
+            $scope.draft = response.data;
+
+            initEditor($scope.draft.post_id);
+        });
+    };
+
+    $scope.saveDraftElement = function (element) {
+        var Post = {};
+
+        Post.title = $("#title").froalaEditor('html.get') ? $("#title").froalaEditor('html.get') : null;
+        Post.body = $("#body").froalaEditor('html.get') ? $("#body").froalaEditor('html.get') : null;
+        Post.hashtags = $("input#description").val();
+
+        if (!Post.body && !Post.title && !Post.hashtags) {
+            $scope.saving = null;
+            return false;
+        }
+
+        $http.put("/api/draft/" + $scope.draft.post_id + "/" + element, Post).then(function (response) {
+            $scope.saving = null;
+            return toastr.success("Draft has been saved.");
+        });
+    };
+
+    $scope.saveDraft = function (draftId) {
+        var draft = {};
+        draft.title = $("#title").froalaEditor('html.get') ? $("#title").froalaEditor('html.get') : "";
+        draft.hashtags = $("#description").val() ? $("#description").val() : "";
+        draft.body = $("#body").froalaEditor('html.get') ? $("#body").froalaEditor('html.get') : "";
+
+        var postId = draftId;
+
+        $http.post("/api/draft/" + postId, draft).then(function (data) {
+            toastr.success("Draft has been saved.");
+        });
+    };
+
+    loadPostDraft($stateParams.postId);
+};
+
+exports.default = EditorCtrl;
+
+/***/ }),
+/* 7 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
 	value: true
 });
 
@@ -5100,7 +5271,297 @@ var FeedsCtrl = function FeedsCtrl($rootScope, $scope, $stateParams, $location, 
 exports.default = FeedsCtrl;
 
 /***/ }),
-/* 7 */
+/* 8 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+
+function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+var ProfileCtrl = function ProfileCtrl($rootScope, $stateParams, $scope, $sce, $window, $location, $http, $q, FeedService, CommentService, ProfileService, RelsService, HashbookService, PostService, profile) {
+    _classCallCheck(this, ProfileCtrl);
+
+    $scope.filter = function (filterType) {
+        if (filterType == $scope.filterType) {
+            $scope.filterType = null;
+        } else {
+            $scope.filterType = filterType;
+        }
+
+        $scope.postsAvailable = true;
+        $location.search('filter', $scope.filterType);
+        $scope.page = 1;
+        $scope.feeds = [];
+        $scope.fetchFeeds();
+    };
+
+    $(".tags-area").tagit({
+        placeholderText: "place for hashtags!"
+    });
+
+    $scope.profile = profile;
+    $scope.profileId = $scope.profile.user_id;
+    $scope.hashtag = $location.search()["hashtag"] ? $location.search()["hashtag"] : null;
+    $scope.page = 1;
+    $scope.feeds = [];
+    $scope.followGuys = [];
+    $scope.showProfileTab = "feeds"; //following, //followers
+    $scope.limit = 10;
+    $scope.postsAvailable = true;
+    $rootScope.isLoading = true;
+    $scope.drafts = [];
+    $scope.followedHashtags = [];
+
+    $http.get("/api/profile/" + $scope.profileId + "/drafts?post_type_id=5").then(function (response) {
+        $scope.drafts = response.data;
+    });
+
+    $scope.fetchPost = function (postId, index) {
+        $http.get("/api/post/" + postId).then(function (response) {
+            $scope.feeds[index].body = response.data.post_body;
+            $scope.feeds[index].isFull = true;
+        });
+    };
+
+    HashbookService.getHashbooks($scope.profileId, {
+        limit: 4
+    }, function (rHashbooks) {
+        $scope.hashbooks = rHashbooks;
+    });
+
+    RelsService.showFollowedHashtags($scope.profileId, function (rFollowedHashtags) {
+        $scope.followedHashtags = rFollowedHashtags;
+    });
+
+    $scope.unfollowHashtag = function (hashtag, index) {
+        RelsService.unfollowHashtag(hashtag);
+        $scope.followedHashtags.splice(index, 1);
+    };
+
+    $scope.feedOnScreen = function (postId, index, inview) {
+        if ($rootScope.user) {
+            if ($rootScope.user.id !== $scope.profileId) {
+                if (!$scope.feeds[index].seen && inview) {
+                    $scope.feeds[index].seen = true;
+                    $http.post("/api/post/" + postId + "/view");
+                }
+            }
+        }
+
+        if ($scope.feeds[index].comment_count) {
+            CommentService.getComments($scope.postId, function (rComments) {
+                $scope.feeds[index].comments = rComments;
+                $scope.feeds[index].showComments = true;
+            });
+        }
+    };
+
+    $scope.updateProfileName = function (data) {
+        var d = $q.defer();
+        $http.put('/api/profile/' + $scope.profileId + "/username", {
+            username: data
+        }).success(function (res) {
+            res = res || {};
+            if (res.status === 'ok') {
+                // {status: "ok"}
+                d.resolve();
+            } else {
+                // {status: "error", msg: "Username should be `awesome`!"}
+                d.resolve(res.msg);
+            }
+        }).error(function (e) {
+            d.reject(e);
+        });
+        return d.promise;
+    };
+
+    $scope.updateProfileTitle = function (data) {
+        var d = $q.defer();
+
+        $http.put('/api/profile/' + $scope.profileId + "/title", {
+            title: data
+        }).then(function (res) {
+            res = res || {};
+
+            if (res.status === 'ok') {
+                // {status: "ok"}
+                d.resolve();
+            } else {
+                // {status: "error", msg: "Username should be `awesome`!"}
+                d.resolve(res.msg);
+            }
+        }, function (e) {
+            d.reject(e);
+        });
+
+        return d.promise;
+    };
+
+    $scope.clickProfilePic = function (userId, profileId) {
+        if ($rootScope.user) {
+            if (userId == profileId) {
+                $('#uploadProfilePicModal').appendTo("body").modal('show');
+            }
+        }
+    };
+
+    $scope.fetchFeeds = function (params) {
+        var _FeedService$fetchFee;
+
+        params = params ? params : {};
+
+        if (params && params.hashtag !== undefined) {
+            $scope.hashtag = params.hashtag;
+            $location.search('hashtag', $scope.hashtag);
+        } else {
+            if (!$scope.hashtag) {
+                $location.search('hashtag', null);
+            } else {
+                params.hashtag = $scope.hashtag;
+            }
+        }
+
+        if (!$scope.filterType) {
+            $location.search('filter', null);
+        } else {
+            params.filter = $scope.filter;
+        }
+
+        $scope.showProfileTab = "feeds";
+
+        FeedService.fetchFeeds((_FeedService$fetchFee = {
+            filter: params.filter,
+            hashtag: params ? params.hashtag : null,
+            page: params.page ? params.page : $scope.page
+        }, _defineProperty(_FeedService$fetchFee, "filter", $scope.filterType), _defineProperty(_FeedService$fetchFee, "algorithm", "none"), _defineProperty(_FeedService$fetchFee, "profileId", $scope.profileId), _FeedService$fetchFee), function (data) {
+            if (!data) {
+                return;
+            }
+            if (params.page === 0) {
+                $scope.feeds = data;
+            } else {
+                data.forEach(function (feed) {
+                    $scope.feeds.push(feed);
+                });
+            }
+
+            if (data.length < $scope.limit) {
+                $scope.postsAvailable = false;
+            } else {
+                $scope.postsAvailable = true;
+            }
+        });
+    };
+
+    $scope.fetchFeeds({});
+
+    $scope.showFeeds = function (tab) {
+        $scope.hashtag = null;
+        $scope.showProfileTab = "feeds";
+    };
+
+    $scope.showHashtags = function () {
+        $scope.showProfileTab = "hashtags";
+    };
+
+    $scope.follow = function (profileId) {
+        if (!$rootScope.user.id) {
+            return $("#loginModal").modal();
+        }
+        $scope.profile.alreadyFollowing = true;
+        RelsService.followProfile(profileId);
+    };
+
+    $scope.unfollow = function (profileId) {
+        $scope.profile.alreadyFollowing = false;
+        RelsService.unfollowProfile(profileId);
+    };
+
+    $scope.showFollowers = function (tab) {
+        $scope.showProfileTab = "followers";
+        RelsService.showFollowers($scope.profileId, function (rFollowers) {
+            $scope.followGuys = rFollowers;
+        });
+    };
+
+    $scope.showFollowing = function (tab) {
+        $scope.showProfileTab = "following";
+        RelsService.showFollowing($scope.profileId, function (rFollowing) {
+            $scope.followGuys = rFollowing;
+        });
+    };
+
+    /* repeting */
+    $scope.upvote = function (postId, index) {
+        if (!$rootScope.user.id) {
+            return $("#loginModal").modal();
+        }
+        $scope.feeds[index].upvotes_count = $scope.feeds[index].upvotes_count + 1;
+        $scope.feeds[index].alreadyUpvoted = true;
+        PostService.upvote(postId);
+    };
+
+    $scope.showComments = function (postId, index) {
+        if ($scope.feeds[index].showComments) {
+            $scope.feeds[index].showComments = false;
+        } else {
+            CommentService.getComments($scope.postId, function (rComments) {
+                $scope.feeds[index].comments = rComments;
+                $scope.feeds[index].showComments = true;
+            });
+        }
+    };
+
+    $scope.postComment = function (postId, body, index) {
+        var comment = {};
+        comment.postId = postId;
+        comment.body = body;
+        $scope.feeds[index].showComments = true;
+        $scope.feeds[index].commentDraft = "";
+        CommentService.postComment(postId, body, function (rComment) {
+            if ($scope.feeds[index].comments) {
+                $scope.feeds[index].comments.unshift(rComment);
+            } else {
+                $scope.feeds[index].comments = [rComment];
+            }
+        });
+    };
+
+    $scope.deleteComment = function (postId, commentId, feedIndex, commentIndex) {
+        $scope.feeds[feedIndex].comments.splice(commentIndex, 1);
+        CommentService.deleteComment(postId, commentId);
+    };
+
+    $scope.removePost = function (feed, isDraft, $index) {
+        bootbox.confirm("Are you sure?", function (result) {
+            if (result) {
+                if (isDraft) $scope.drafts.splice($index, 1);else $scope.feeds.splice($index, 1);
+                PostService.removePost(feed.id);
+            }
+        });
+    };
+
+    $scope.loadMore = function () {
+        if (!$rootScope.activeCalls && $scope.postsAvailable) {
+            $scope.page = $scope.page + 1;
+            $scope.fetchFeeds({
+                page: $scope.page
+            });
+        }
+    };
+};
+
+exports.default = ProfileCtrl;
+
+/***/ }),
+/* 9 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -5194,7 +5655,7 @@ var WelcomeCtrl = function WelcomeCtrl($rootScope, $scope, $location, $state, $h
 exports.default = WelcomeCtrl;
 
 /***/ }),
-/* 8 */
+/* 10 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;/*!
@@ -15421,7 +15882,7 @@ return jQuery;
 
 
 /***/ }),
-/* 9 */
+/* 11 */
 /***/ (function(module, exports) {
 
 /* ng-infinite-scroll - v1.3.0 - 2016-06-30 */
@@ -15616,16 +16077,16 @@ if (typeof module !== "undefined" && typeof exports !== "undefined" && module.ex
 
 
 /***/ }),
-/* 10 */
+/* 12 */
 /***/ (function(module, exports, __webpack_require__) {
 
 // style-loader: Adds some css to the DOM by adding a <style> tag
 
 // load the styles
-var content = __webpack_require__(11);
+var content = __webpack_require__(13);
 if(typeof content === 'string') content = [[module.i, content, '']];
 // add the styles to the DOM
-var update = __webpack_require__(14)(content, {});
+var update = __webpack_require__(16)(content, {});
 if(content.locals) module.exports = content.locals;
 // Hot Module Replacement
 if(false) {
@@ -15642,10 +16103,10 @@ if(false) {
 }
 
 /***/ }),
-/* 11 */
+/* 13 */
 /***/ (function(module, exports, __webpack_require__) {
 
-exports = module.exports = __webpack_require__(12)(undefined);
+exports = module.exports = __webpack_require__(14)(undefined);
 // imports
 exports.push([module.i, "@import url(https://fonts.googleapis.com/css?family=Open+Sans:300,700);", ""]);
 exports.push([module.i, "@import url(https://fonts.googleapis.com/css?family=Roboto:100,500);", ""]);
@@ -15657,7 +16118,7 @@ exports.push([module.i, "/*--------------------- FONT (OPEN SANS) IMPORT FROM GO
 
 
 /***/ }),
-/* 12 */
+/* 14 */
 /***/ (function(module, exports, __webpack_require__) {
 
 /* WEBPACK VAR INJECTION */(function(Buffer) {/*
@@ -15736,16 +16197,16 @@ function toComment(sourceMap) {
   return '/*# ' + data + ' */';
 }
 
-/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(17).Buffer))
+/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(19).Buffer))
 
 /***/ }),
-/* 13 */
+/* 15 */
 /***/ (function(module, exports) {
 
 module.exports = "<div class=\"row\">\n<div class=\"push feed\">\n\t\t\t\t<!-- HEADER -->\n\t\t\t\t<div class=\"feed-header\">\n\t\t\t\t\t\n\t\t\t\t\t\t\t\t\t<!-- AUTHOR -->\n\t\t\t\t\t<div class=\"feed-author\" ng-if=\"feed.post_type_id > 1\">\n\t\t\t\t\t\t<ul class=\"list-unstyled\" >\n\t\t\t\t\t\t\t<!-- AUTHOR IMAGE -->\n\t\t\t\t\t\t\t<li>\n\t\t\t\t\t\t\t\t<img fallback-src=\"{{'/img/avatar.png'}}\" ng-src=\"{{feed.authorImage ? feed.authorImage : '/img/avatar.png'}}\">\n\t\t\t\t\t\t\t</li>\n\t\t\t\t\t\t\n\t\t\t\t\t\t\t<!-- END AUTHOR IMAGE -->\n\n\t\t\t\t\t\t\t<!-- AUTHOR REFERENCES -->\n\t\t\t\t\t\t\t<li>\n\t\t\t\t\t\t\t\t<strong style=\"margin-top:15px;\"><a ui-sref=\"vicigo.profile({profileId:feed.authorId})\">{{feed.authorName}}</a></strong>\n\t\t\t\t\t\t\t</li>\n\t\t\t\t\t\t\t<!-- END AUTHOR REFERENCES -->\n\t\t\t\t\t\t\t<li class=\"feed-date\">\n\t\t\t\t\t\t\t\t\t\t<span class=\"text-muted\"><small>{{ feed.created_at }}</small></span>\n\t\t\t\t\t\t\t</li>\n\t\t\t\t\t\t</ul>\n\t\t\t\t\t</div>\n\t\t\t\t\t<!-- END AUTHOR -->\n\t\t\t\t\t\n\t\t\t\t</div>\n\t\t\t\t<!-- END HEADER -->\n\t\t\n\n\n\t\t\t\t\n\t\t\t\t\n\t\t\t\t\n\t\t\t\t<div ng-class=\"{ 'post-feed-body' : feed.post_type_id == 2 || feed.post_type_id == 3, 'image-feed-body' : feed.post_type_id == 4 || feed.post_type_id == 5 }\">\n\t\t\t\t\t<!-- TITLE -->\n\t\t\t\t\t<div class=\"feed-title\" ng-if=\"hasTitle(feed.post_type_id)\">\n\t\t\t\t\t\t<h3><strong><a ng-href=\"{{feed.link}}\">{{feed.title}}</a></strong></h3>\n\t\t\t\t\t</div>\n\t\t\t\t\t<!-- END TITLE -->\n\n\t\t\t\t\t\n\t\t\t\t\t<!-- IMAGE BODY href=\"/post/{{feed.id}}\" -->\n\t\t\t\t\t<div class=\"feed-body\" ng-click=\"goToPost(feed)\">\n\t\t\t\t\t\t\n\t\t\t\t\t\t<lazy-img ng-if=\"feed.image_url\" class=\"lazy\" ng-src=\"{{trustSrc(feed.image_url)}}\" alt=\"image\"></lazy-img>\n\t\t\t\t\t\t<p ng-if=\"feed.body && feed.post_type_id !== 4 && feed.post_type_id !== 5\" class=\"feed-article\">\n\t\t\t\t\t\t\t\t{{displayFeedBody(feed.body)}}\n\t\t\t\t\t\t</p>\n\t\t\t\t\t\t\n\t\t\t\t\t</div>\n\t\t\t\t\t<!-- END POST  BODY -->\n\t\t\t\t\t\n\t\t\t\t\n\n\t\t\t\t\t<!----------------------- POST BODY ENDS ---------------------------------->\n\t\t\t\t</div>\n\t\t\t\t\n\t\t\t<!-- footer -->\t\n\t\t\t<div class=\"feed-footer\">\n\t\t\t\n\t\t\t<div class=\"row hashtags\">\n\t\t\t\t\t\t<div class=\"col-xs-12\">\n\t\t\t\t\t\t\t<div class=\"padding-left:5px;padding-right:5px;\">\n\t\t\t\t\t\t\t\t<a class=\"pull-left hashtag\" ng-repeat=\"hashtag in feed.hashtags\" ui-sref=\"vicigo.hashtag({ hashtag : hashtag.hashtag})\">#{{ ::hashtag.hashtag}}</a>\n\t\t\t\t\t\t\t</div>\n\t\t\t\t\t\t\t\n\t\t\t\t\t\t</div>\n\t\t\t</div>\n\t\t\t\t\n\t\t\t\t\n\t\t\t\t<div style=\"row\">\n\t\t\t\t\t<div class=\"col-xs-12\" >\n\t\t\t<ul class=\"pointer pull-left list-inline list-unstyled list\" ng-click=\"showUpvotes(feed)\" >\n\t\t\t\t\t\t\t<li>\n\t\t\t\t\t\t\t\t<span class=\"btn default\">\n\t\t\t\t\t\t\t\t\t<i class=\"fa fa-heart-o\"></i>\n\t\t\t\t\t\t\t\t\t<span> {{ ::feed.upvotes_count}}</span>\n\t\t\t\t\t\t\t\t</span>\n\t\t\t\t\t\t\t</li>\n\n\t\t\t\t\t\t\t<li>\n\t\t\t\t\t\t\t\t<span class=\"btn default\">\n\t\t\t\t\t\t\t\t\t<i class=\"fa fa-comment-o\"></i>\n\t\t\t\t\t\t\t\t\t<span> {{ ::feed.comment_count}}</span>\n\t\t\t\t\t\t\t\t</span>\n\t\t\t\t\t\t\t</li>\n\t\t\t\t\t\t\t\t<li>\n\n\t\t\t\t\t\t\t\t<span class=\"btn default\">\n\t\t\t\t\t\t\t\t\t<i class=\"fa fa-eye\"></i>\n\t\t\t\t\t\t\t\t\t<span> {{ ::feed.views_count}}</span>\n\t\t\t\t\t\t\t\t</span>\n\t\t\t\t\t\t\t</li>\n\n\t\t\t\t\t\t</ul>\n\t\t\t\t</div>\n\t\t\t\t\t\t\n\t\t\t\t\t</div>\n\t\t\t\n\t\t\t\t\n\t\t\t\t\t<!-- OPTIONS -->\n\t\t\t\t\t<div class=\"row feed-actions\" style=\"padding-bottom:5px;\">\n\t\t\t\t\t\t\t<div class=\"col-xs-12\">\n\t\t\t\t\t\t\t\t<form ng-submit=\"postComment(feed.id,feed.commentDraft,$index)\">\n\t\t\t\t\t\t<ul class=\" list-unstyled list-inline list\" >\n\t\t\t\t\t\t\t<li style=\"width:50px;\">\n\t\t\t\t\t\t\t\t<span ng-click=\"upvote(feed.id, $index)\" style=\"cursor:pointer;\">\n\t\t\t\t\t\t\t\t\t<i ng-if=\"feed.alreadyUpvoted\" class=\"upvoted rate-btn fa fa-heart\"></i>\n\t\t\t\t\t\t\t\t\t<i ng-if=\"!feed.alreadyUpvoted\" class=\"rate-btn fa fa-heart-o fa-2x\"></i>\n\t\t\t\t\t\t\t\t</span>\n\t\t\t\t\t\t\t</li>\n\n\t\t\t\t\t\t\t<li style=\"width:500px;\">\n\t\t\t\t\t\t\t\t\t\t\t<input style=\"width:500px;\" ng-model=\"feed.commentDraft\" placeholder=\"Write your comment ...\">\n\t\t\t\t\t\t\t</li>\n\t\t\t\t\t\n\t\t\t\t\t\t\t<li style=\"width:50px;\" uib-dropdown on-toggle=\"toggled(open)\">\n\t\t\t\t\n      <a href=\"#\" uib-dropdown-toggle ng-disabled=\"disabled\">\n\t\t\t\t\t<i class=\"fa fa-ellipsis-h\"></i>\n      </a>\n      <ul uib-dropdown-menu class=\"uib-dropdown-menu header_menu list-unstyled\" role=\"menu\" aria-labelledby=\"single-button\">\n        <li  ng-if=\"user.id==feed.authorId && (feed.post_type_id == 4 || feed.post_type_id == 5)\"><a href=\"#\"  ng-click=\"editPhoto(feed)\">Edit</a>\n\t\t\t\t\t\t\t</li>\n\t\t\t\t\t\t\t<li ng-if=\"user.id==feed.authorId && (feed.post_type_id == 3 || feed.post_type_id == 2)\"><a href=\"#\"  target=\"_self\" ng-href=\"/edit/{{feed.id}}\">Edit</a>\n\t\t\t\t\t\t\t</li>\n\t\t\t\t\t\t\t<li ng-if=\"user.id==feed.authorId\"><a href=\"#\"  ng-click=\"removePost(feed,false,$index)\">Remove</a>\n\t\t\t\t\t\t\t</li>\n\t\t\t\t\t\t\t<li><a href=\"#\" >Share</a>\n\t\t\t\t\t\t\t</li>\n\t\t\t\t\t\t\t<li><a href=\"#\" >Report</a>\n\t\t\t\t\t\t\t</li>\n      </ul>\n\n\t\t\t\t\t\t\t</li>\n\n\t\t\t\t\t\t\t\n\n\n\t\t\t\t\t\t</ul>\n\t\t\t\t\t</form>\n\t\t\t\t\n\t\t\t\t\t</div>\n\t\t\t\t\t</div>\n\t\t\t\t\t<!-- END OPTIONS -->\n\n\n\n\n\t\t\t\t\t<!--COMMENTS-->\n\t\t\t\t\t<div class=\"row\">\n\t\t\t\t\t\t<div class=\"col-xs-12\">\n\t\t\t\t\t\t<div style=\"padding:5px;\">\n\t\t\t\t\t\t\t\n\t\t\t\t\t\t\t\n\t\t\t\t\t\t\t\n\t\t\t\t\t\t<a ng-if=\"feed.comment_count&&!feed.showComments\" class=\"text-muted\" ng-click=\"showComments(feed.id,$index)\">Show Comments</a>\n\t\t\t\t\n    <table ng-if=\"feed.comments.length\" style=\"padding:10px;\">\n        <tbody>\t\n                    <tr style=\"width:100%;\" ng-repeat=\"comment in feed.comments\">\n                            <td style=\"width:100%; float:left;font-size:13px;\">\n                                <p style=\"float:left\">\n                                        <strong > <a href=\"/profile/{{comment.authorId}}\" >{{comment.authorName}} </a></strong> {{comment.body}} <small ng-if=\"user.id==comment.authorId\"> <a href=\"#\" ng-click=\"deleteComment(feed.id,comment.comment_id,$parent.$index,$index)\">remove</a> </small>\n                                </p>\n                                \n                            </td>\t\n                        </tr>\n        </tbody>\t\n    </table>\t\n\t\t\t\t\t\t\t\n\t\t\t</div>\t\n\t\t\t\t\t</div>\n\n\t\t\t\t\t</div>\n      </div>\n\t\t\t<!-- end footer-->\n\t\t\t</div>\n</div>";
 
 /***/ }),
-/* 14 */
+/* 16 */
 /***/ (function(module, exports, __webpack_require__) {
 
 /*
@@ -15769,7 +16230,7 @@ var stylesInDom = {},
 	singletonElement = null,
 	singletonCounter = 0,
 	styleElementsInsertedAtTop = [],
-	fixUrls = __webpack_require__(15);
+	fixUrls = __webpack_require__(17);
 
 module.exports = function(list, options) {
 	if(typeof DEBUG !== "undefined" && DEBUG) {
@@ -16022,7 +16483,7 @@ function updateLink(linkElement, options, obj) {
 
 
 /***/ }),
-/* 15 */
+/* 17 */
 /***/ (function(module, exports) {
 
 
@@ -16091,7 +16552,7 @@ module.exports = function (css) {
 
 
 /***/ }),
-/* 16 */
+/* 18 */
 /***/ (function(module, exports) {
 
 var g;
@@ -16118,7 +16579,7 @@ module.exports = g;
 
 
 /***/ }),
-/* 17 */
+/* 19 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -16132,9 +16593,9 @@ module.exports = g;
 
 
 
-var base64 = __webpack_require__(18)
-var ieee754 = __webpack_require__(19)
-var isArray = __webpack_require__(20)
+var base64 = __webpack_require__(20)
+var ieee754 = __webpack_require__(21)
+var isArray = __webpack_require__(22)
 
 exports.Buffer = Buffer
 exports.SlowBuffer = SlowBuffer
@@ -17912,10 +18373,10 @@ function isnan (val) {
   return val !== val // eslint-disable-line no-self-compare
 }
 
-/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(16)))
+/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(18)))
 
 /***/ }),
-/* 18 */
+/* 20 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -18036,7 +18497,7 @@ function fromByteArray (uint8) {
 
 
 /***/ }),
-/* 19 */
+/* 21 */
 /***/ (function(module, exports) {
 
 exports.read = function (buffer, offset, isLE, mLen, nBytes) {
@@ -18126,7 +18587,7 @@ exports.write = function (buffer, value, offset, isLE, mLen, nBytes) {
 
 
 /***/ }),
-/* 20 */
+/* 22 */
 /***/ (function(module, exports) {
 
 var toString = {}.toString;
@@ -18137,35 +18598,43 @@ module.exports = Array.isArray || function (arr) {
 
 
 /***/ }),
-/* 21 */
+/* 23 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 
-__webpack_require__(10);
+__webpack_require__(12);
 
-__webpack_require__(8);
+__webpack_require__(10);
 
 var _angularUiRouter = __webpack_require__(0);
 
 var _angularUiRouter2 = _interopRequireDefault(_angularUiRouter);
 
-var _ngInfiniteScroll = __webpack_require__(9);
+var _ngInfiniteScroll = __webpack_require__(11);
 
 var _ngInfiniteScroll2 = _interopRequireDefault(_ngInfiniteScroll);
 
-var _FeedsCtrl = __webpack_require__(6);
+var _ProfileCtrl = __webpack_require__(8);
+
+var _ProfileCtrl2 = _interopRequireDefault(_ProfileCtrl);
+
+var _FeedsCtrl = __webpack_require__(7);
 
 var _FeedsCtrl2 = _interopRequireDefault(_FeedsCtrl);
 
-var _WelcomeCtrl = __webpack_require__(7);
+var _WelcomeCtrl = __webpack_require__(9);
 
 var _WelcomeCtrl2 = _interopRequireDefault(_WelcomeCtrl);
 
 var _DraftsCtrl = __webpack_require__(5);
 
 var _DraftsCtrl2 = _interopRequireDefault(_DraftsCtrl);
+
+var _EditorCtrl = __webpack_require__(6);
+
+var _EditorCtrl2 = _interopRequireDefault(_EditorCtrl);
 
 var _routing = __webpack_require__(3);
 
@@ -18185,11 +18654,7 @@ var _component2 = _interopRequireDefault(_component);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
-function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
-
 // import angular from 'angular';
-
-
 var imageDropzone, profilePicDropzone, hashbookBGDropzone;
 var vicigoApp = angular.module("hashtag-app", [_angularUiRouter2.default, 'ui.bootstrap', _ngInfiniteScroll2.default, "dcbImgFallback", "xeditable", "angular-inview", '720kb.socialshare', 'ngDialog', "angular.lazyimg", "ViciAuth"]).constant("API_URL", "").run(function (ngDialog) {
 	(function (d, s, id) {
@@ -19004,9 +19469,11 @@ var vicigoApp = angular.module("hashtag-app", [_angularUiRouter2.default, 'ui.bo
 
 	$rootScope.logoutMe = function () {
 		ViciAuth.logout();
-		$http.get("/api/me/logout").then(function (response) {
+
+		$http.post("/viciauth/logout").then(function (response) {
 			$rootScope.user = false;
 			$rootScope.fetchingNotifs = false;
+
 			$state.go("starter.welcome");
 		});
 	};
@@ -19110,427 +19577,6 @@ var vicigoApp = angular.module("hashtag-app", [_angularUiRouter2.default, 'ui.bo
 	};
 }).controller("discoverController", function ($rootScope, $stateParams, $scope, ProfileService) {
 	ProfileService.fetchRecommentedProfiles($stateParams.profileId, {}, function (rProfiles) {});
-}).controller("profileController", function ($rootScope, $stateParams, $scope, $sce, $window, $location, $http, $q, FeedService, CommentService, ProfileService, RelsService, HashbookService, PostService, profile) {
-
-	$scope.filter = function (filterType) {
-		if (filterType == $scope.filterType) {
-			$scope.filterType = null;
-		} else {
-			$scope.filterType = filterType;
-		}
-		$scope.postsAvailable = true;
-		$location.search('filter', $scope.filterType);
-		$scope.page = 1;
-		$scope.feeds = [];
-		$scope.fetchFeeds();
-	};
-
-	$(".tags-area").tagit({
-		placeholderText: "place for hashtags!"
-	});
-
-	$scope.profile = profile;
-	$scope.profileId = $scope.profile.user_id;
-	$scope.hashtag = $location.search()["hashtag"] ? $location.search()["hashtag"] : null;
-	$scope.page = 1;
-	$scope.feeds = [];
-	$scope.followGuys = [];
-	$scope.showProfileTab = "feeds"; //following, //followers
-	$scope.limit = 10;
-	$scope.postsAvailable = true;
-	$rootScope.isLoading = true;
-	$scope.drafts = [];
-	$scope.followedHashtags = [];
-
-	$http.get("/api/profile/" + $scope.profileId + "/drafts?post_type_id=5").then(function (response) {
-		$scope.drafts = response.data;
-	});
-
-	$scope.fetchPost = function (postId, index) {
-		$http.get("/api/post/" + postId).then(function (response) {
-			$scope.feeds[index].body = response.data.post_body;
-			$scope.feeds[index].isFull = true;
-		});
-	};
-
-	HashbookService.getHashbooks($scope.profileId, {
-		limit: 4
-	}, function (rHashbooks) {
-		$scope.hashbooks = rHashbooks;
-	});
-
-	RelsService.showFollowedHashtags($scope.profileId, function (rFollowedHashtags) {
-		$scope.followedHashtags = rFollowedHashtags;
-	});
-
-	$scope.unfollowHashtag = function (hashtag, index) {
-		RelsService.unfollowHashtag(hashtag);
-		$scope.followedHashtags.splice(index, 1);
-	};
-
-	$scope.feedOnScreen = function (postId, index, inview) {
-
-		if ($rootScope.user) {
-			if ($rootScope.user.id !== $scope.profileId) {
-				if (!$scope.feeds[index].seen && inview) {
-					$scope.feeds[index].seen = true;
-					$http.post("/api/post/" + postId + "/view");
-				}
-			}
-		}
-
-		if ($scope.feeds[index].comment_count) {
-			CommentService.getComments($scope.postId, function (rComments) {
-				$scope.feeds[index].comments = rComments;
-				$scope.feeds[index].showComments = true;
-			});
-		}
-	};
-
-	$scope.updateProfileName = function (data) {
-		var d = $q.defer();
-		$http.put('/api/profile/' + $scope.profileId + "/username", {
-			username: data
-		}).success(function (res) {
-			res = res || {};
-			if (res.status === 'ok') {
-				// {status: "ok"}
-				d.resolve();
-			} else {
-				// {status: "error", msg: "Username should be `awesome`!"}
-				d.resolve(res.msg);
-			}
-		}).error(function (e) {
-			d.reject(e);
-		});
-		return d.promise;
-	};
-
-	$scope.updateProfileTitle = function (data) {
-		var d = $q.defer();
-
-		$http.put('/api/profile/' + $scope.profileId + "/title", {
-			title: data
-		}).then(function (res) {
-			res = res || {};
-			debugger;
-			if (res.status === 'ok') {
-				// {status: "ok"}
-				d.resolve();
-			} else {
-				// {status: "error", msg: "Username should be `awesome`!"}
-				d.resolve(res.msg);
-			}
-		}, function (e) {
-			d.reject(e);
-		});
-
-		return d.promise;
-	};
-
-	$scope.clickProfilePic = function (userId, profileId) {
-		if ($rootScope.user) {
-			if (userId == profileId) {
-				$('#uploadProfilePicModal').appendTo("body").modal('show');
-			}
-		}
-	};
-
-	$scope.fetchFeeds = function (params) {
-		var _FeedService$fetchFee;
-
-		params = params ? params : {};
-		if (params && params.hashtag !== undefined) {
-			$scope.hashtag = params.hashtag;
-			$location.search('hashtag', $scope.hashtag);
-		} else {
-			if (!$scope.hashtag) {
-				$location.search('hashtag', null);
-			} else {
-				params.hashtag = $scope.hashtag;
-			}
-		}
-		if (!$scope.filterType) {
-			$location.search('filter', null);
-		} else {
-			params.filter = $scope.filter;
-		}
-
-		$scope.showProfileTab = "feeds";
-
-		FeedService.fetchFeeds((_FeedService$fetchFee = {
-			filter: params.filter,
-			hashtag: params ? params.hashtag : null,
-			page: params.page ? params.page : $scope.page
-		}, _defineProperty(_FeedService$fetchFee, 'filter', $scope.filterType), _defineProperty(_FeedService$fetchFee, 'algorithm', "none"), _defineProperty(_FeedService$fetchFee, 'profileId', $scope.profileId), _FeedService$fetchFee), function (data) {
-
-			if (!data) {
-				return;
-			}
-			if (params.page === 0) {
-				$scope.feeds = data;
-			} else {
-				data.forEach(function (feed) {
-					$scope.feeds.push(feed);
-				});
-			}
-
-			if (data.length < $scope.limit) {
-				$scope.postsAvailable = false;
-			} else {
-				$scope.postsAvailable = true;
-			}
-		});
-	};
-
-	$scope.fetchFeeds({});
-
-	$scope.showFeeds = function (tab) {
-		$scope.hashtag = null;
-		$scope.showProfileTab = "feeds";
-	};
-
-	$scope.showHashtags = function () {
-		$scope.showProfileTab = "hashtags";
-	};
-
-	$scope.follow = function (profileId) {
-		if (!$rootScope.user.id) {
-			return $("#loginModal").modal();
-		}
-		$scope.profile.alreadyFollowing = true;
-		RelsService.followProfile(profileId);
-	};
-
-	$scope.unfollow = function (profileId) {
-		$scope.profile.alreadyFollowing = false;
-		RelsService.unfollowProfile(profileId);
-	};
-
-	$scope.showFollowers = function (tab) {
-		$scope.showProfileTab = "followers";
-		RelsService.showFollowers($scope.profileId, function (rFollowers) {
-			$scope.followGuys = rFollowers;
-		});
-	};
-
-	$scope.showFollowing = function (tab) {
-		$scope.showProfileTab = "following";
-		RelsService.showFollowing($scope.profileId, function (rFollowing) {
-			$scope.followGuys = rFollowing;
-		});
-	};
-
-	/* repeting */
-	$scope.upvote = function (postId, index) {
-		if (!$rootScope.user.id) {
-			return $("#loginModal").modal();
-		}
-		$scope.feeds[index].upvotes_count = $scope.feeds[index].upvotes_count + 1;
-		$scope.feeds[index].alreadyUpvoted = true;
-		PostService.upvote(postId);
-	};
-
-	$scope.showComments = function (postId, index) {
-		if ($scope.feeds[index].showComments) {
-			$scope.feeds[index].showComments = false;
-		} else {
-			CommentService.getComments($scope.postId, function (rComments) {
-				$scope.feeds[index].comments = rComments;
-				$scope.feeds[index].showComments = true;
-			});
-		}
-	};
-
-	$scope.postComment = function (postId, body, index) {
-		var comment = {};
-		comment.postId = postId;
-		comment.body = body;
-		$scope.feeds[index].showComments = true;
-		$scope.feeds[index].commentDraft = "";
-		CommentService.postComment(postId, body, function (rComment) {
-			if ($scope.feeds[index].comments) {
-				$scope.feeds[index].comments.unshift(rComment);
-			} else {
-				$scope.feeds[index].comments = [rComment];
-			}
-		});
-	};
-
-	$scope.deleteComment = function (postId, commentId, feedIndex, commentIndex) {
-		$scope.feeds[feedIndex].comments.splice(commentIndex, 1);
-		CommentService.deleteComment(postId, commentId);
-	};
-
-	$scope.removePost = function (feed, isDraft, $index) {
-		bootbox.confirm("Are you sure?", function (result) {
-			if (result) {
-				if (isDraft) $scope.drafts.splice($index, 1);else $scope.feeds.splice($index, 1);
-				PostService.removePost(feed.id);
-			}
-		});
-	};
-
-	$scope.loadMore = function () {
-		if (!$rootScope.activeCalls && $scope.postsAvailable) {
-			$scope.page = $scope.page + 1;
-			$scope.fetchFeeds({
-				page: $scope.page
-			});
-		}
-	};
-}).controller("editorController", function ($rootScope, $state, $scope, $stateParams, $http, $timeout, ViciAuth) {
-
-	$scope.draft = {};
-	$scope.Saving = {
-		body: false,
-		title: false
-	};
-
-	$scope.publishPost = function (postId) {
-		$http.put("/api/draft/" + postId + "/publish").then(function (response) {
-			//
-			if (response.status == 400) {
-				if (response.data.code == "POST_TOO_SHORT") {
-					return toastr.info("Your story is too short. The minimum number of characters is 300.");
-				}
-			}
-			if (response.status == 200) {
-				toastr.success("You have successfully published your story.");
-				$timeout(function () {
-					$state.go("vicigo.post", {
-						postId: postId
-					});
-				}, 1500);
-			}
-
-			return toastr.warning(JSON.stringify(response.data));
-		});
-	};
-	$scope.ready = false;
-	var initEditor = function initEditor(postId) {
-
-		if (!postId) {
-			alert("Editor cannot be initialized");
-		}
-
-		$("#description").tagit({
-			afterTagAdded: function afterTagAdded(event, ui) {
-				if ($scope.ready) {
-					$scope.saveDraftElement("hashtags");
-				}
-			}
-		});
-
-		$scope.draft.hashtags.forEach(function (hashtag) {
-			$("#description").tagit("createTag", hashtag.hashtag);
-		});
-
-		$('#title').froalaEditor({
-			key: 'krlenofG5hcj1==',
-			toolbarInline: true,
-			charCounterMax: 50,
-			countCharacters: true,
-			alwaysVisible: false,
-			buttons: [],
-			allowComments: false,
-			allowScript: false,
-			allowStyle: false,
-			plainPaste: true,
-			allowedAttrs: [],
-			placeholderText: "Title"
-		});
-
-		$('#body').froalaEditor({
-			key: 'krlenofG5hcj1==',
-			imageUploadURL: "/upload/image?postId=" + postId,
-			heightMin: 260,
-			imageDefaultWidth: 640,
-			imagePaste: false,
-			toolbarButtons: ['bold', 'italic', 'underline', 'insertLink', 'insertImage', 'insertVideo', 'quote', 'insertHR', "html"],
-			requestHeaders: {
-				"X-Auth-Token": ViciAuth.getAuthToken()
-			},
-			placeholder: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
-		});
-
-		$('#body').froalaEditor('html.set', $scope.draft.post_body ? $scope.draft.post_body : "");
-		$('#body').on('froalaEditor.contentChanged', function (e, editor) {
-			if ($scope.Saving.body) clearTimeout($scope.Saving.body);
-			$scope.Saving.body = setTimeout(function () {
-				$scope.saveDraftElement("body");
-			}, 1500);
-		});
-
-		$('#title').froalaEditor('html.set', $scope.draft.post_title ? $scope.draft.post_title : "");
-		$('#title').on('froalaEditor.contentChanged', function (e, editor) {
-			if ($scope.Saving.title) clearTimeout($scope.Saving.title);
-			$scope.Saving.title = setTimeout(function () {
-				$scope.saveDraftElement("title");
-			}, 1500);
-		});
-
-		var backgroundImageDropzone = new Dropzone("#backgroundImageDropzone", {
-			url: "/upload/image?isBackground=true&postId=" + postId,
-			maxFiles: 10,
-			thumbnailWidth: null,
-			previewTemplate: document.querySelector('#preview-template').innerHTML,
-			clickable: '#uploadPostBackground'
-		}).on("sending", function (file, xhr) {
-			xhr.setRequestHeader("X-Auth-Token", ViciAuth.getAuthToken());
-		}).on("success", function (file, response) {
-
-			$scope.draft.post_image_url = response.link;
-		});
-
-		$scope.ready = true;
-	};
-
-	$scope.draft = {};
-
-	if ($stateParams.postId) {
-		$http.get("/api/post/" + $stateParams.postId).then(function (response) {
-			$scope.draft = response.data;
-			initEditor($scope.draft.post_id);
-		});
-	} else {
-		$http.get("/api/draft").then(function (response) {
-
-			$scope.draft = response.data;
-			initEditor($scope.draft.post_id);
-		});
-	}
-
-	$scope.saveDraftElement = function (element) {
-		var Post = {};
-
-		Post.title = $("#title").froalaEditor('html.get') ? $("#title").froalaEditor('html.get') : null;
-		Post.body = $("#body").froalaEditor('html.get') ? $("#body").froalaEditor('html.get') : null;
-		Post.hashtags = $("input#description").val();
-
-		if (!Post.body && !Post.title && !Post.hashtags) {
-			$scope.saving = null;
-			return false;
-		}
-
-		$http.put("/api/draft/" + $scope.draft.post_id + "/" + element, Post).then(function (response) {
-			$scope.saving = null;
-			return toastr.success("Draft has been saved.");
-		});
-	};
-
-	$scope.saveDraft = function (draftId) {
-		var draft = {};
-		draft.title = $("#title").froalaEditor('html.get') ? $("#title").froalaEditor('html.get') : "";
-		draft.hashtags = $("#description").val() ? $("#description").val() : "";
-		draft.body = $("#body").froalaEditor('html.get') ? $("#body").froalaEditor('html.get') : "";
-
-		var postId = draftId;
-
-		$http.post("/api/draft/" + postId, draft).then(function (data) {
-			toastr.success("Draft has been saved.");
-		});
-	};
 }).controller("notifsController", function ($rootScope, $scope, notifs, $http) {
 	$scope.notifs = notifs;
 	$scope.page = 1;
@@ -19587,7 +19633,7 @@ var vicigoApp = angular.module("hashtag-app", [_angularUiRouter2.default, 'ui.bo
 
 		return "post";
 	};
-}).controller("feedsController", _FeedsCtrl2.default).controller("welcomeController", _WelcomeCtrl2.default).controller("draftsController", _DraftsCtrl2.default).run(function ($rootScope, $state, ViciAuth) {
+}).controller("profileController", _ProfileCtrl2.default).controller("editorController", _EditorCtrl2.default).controller("feedsController", _FeedsCtrl2.default).controller("welcomeController", _WelcomeCtrl2.default).controller("draftsController", _DraftsCtrl2.default).run(function ($rootScope, $state, ViciAuth) {
 	$rootScope.$on('$stateChangeStart', function (event, next, nextParams, fromState) {
 		if (next.name == "starter.welcome") {
 			$rootScope.welcome = true;

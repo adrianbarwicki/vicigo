@@ -584,19 +584,19 @@ module.exports = function(app) {
 					userId: req.user.id,
 					noCrop : req.query.postId
 				}, (err, rPost) => {
-					return callback(err,rPost);
+					return callback(err, rPost);
 				});
 			},
 			(Post, callback) => {
-				if(req.query.postId && req.query.isBackground) {
+				if (req.query.postId && req.query.isBackground) {
 					postController
-					.setBackgroundPicture(req.query.postId,req.user.id,Post.image_bg_url, err => {
-						return callback(err,Post);
+					.setBackgroundPicture(req.query.postId, req.user.id, Post.image_bg_url, err => {
+						return callback(err, Post);
 					});
-				} else if (req.query.hashbookId&&req.query.isBackground) {
+				} else if (req.query.hashbookId && req.query.isBackground) {
 					BlogService
-					.setBackgroundPicture(req.query.postId,req.user.id,Post.image_bg_url, err => {
-						return callback(err,Post);
+					.setBackgroundPicture(req.query.postId, req.user.id, Post.image_bg_url, err => {
+						return callback(err, Post);
 					});
 				} else if (req.query.isProfileAvatar) {
 					profileController
@@ -627,7 +627,7 @@ module.exports = function(app) {
 
 			responseController.sendResponse(res, err, {
 				postId: rPost ? rPost.post_id : false,
-				link: Image ? Image.image_url : '',
+				link: Image ? Image.image_url : ''
 			});
 		});
 	});

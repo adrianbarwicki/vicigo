@@ -196,12 +196,15 @@ function setBackgroundPicture(postId, userId, imageUrl, callback) {
 		if (!postId) {
 			throw "postId inital";
 		}
+
 		if (!imageUrl) {
 			throw "imageUrl inital";
 		}
+
 		var sql = "UPDATE posts SET image_url = ? WHERE id = ? AND owner_user_id = ?";
-		var values = [imageUrl, postId, userId];
-		pool.query(sql, values, function(err, result) {
+		var values = [ imageUrl, postId, userId ];
+		
+		pool.query(sql, values, (err, result) => {
 			callback(err);
 		});
 	}

@@ -1,5 +1,5 @@
 const pool  = require('mysql').createPool({
-  connectionLimit: 1000,	
+  connectionLimit: 3,	
   host: process.env.VICIGO_DB_HOST_NAME,
   post: 3306,
   user: process.env.VICIGO_DB_USER,

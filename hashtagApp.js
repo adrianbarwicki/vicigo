@@ -6,9 +6,9 @@
 /******/ 	function __webpack_require__(moduleId) {
 /******/
 /******/ 		// Check if module is in cache
-/******/ 		if(installedModules[moduleId])
+/******/ 		if(installedModules[moduleId]) {
 /******/ 			return installedModules[moduleId].exports;
-/******/
+/******/ 		}
 /******/ 		// Create a new module (and put it into the cache)
 /******/ 		var module = installedModules[moduleId] = {
 /******/ 			i: moduleId,
@@ -60,10 +60,10 @@
 /******/ 	__webpack_require__.o = function(object, property) { return Object.prototype.hasOwnProperty.call(object, property); };
 /******/
 /******/ 	// __webpack_public_path__
-/******/ 	__webpack_require__.p = "";
+/******/ 	__webpack_require__.p = "/public/js";
 /******/
 /******/ 	// Load entry module and return exports
-/******/ 	return __webpack_require__(__webpack_require__.s = 23);
+/******/ 	return __webpack_require__(__webpack_require__.s = 14);
 /******/ })
 /************************************************************************/
 /******/ ([
@@ -4690,9 +4690,137 @@ angular.module('ui.router.state')
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
+
+exports.default = function () {
+    angular.module("viciauth", []).value("API", {
+        API_URL: "https://vqsocialmedia.vqmarketplace.com",
+        ME: "https://vqsocialmedia.vqmarketplace.com/me",
+        LOGIN: "https://vqsocialmedia.vqmarketplace.com/api/login",
+        SIGNUP: "https://vqsocialmedia.vqmarketplace.com/api/signup",
+        LOGOUT: "https://vqsocialmedia.vqmarketplace.com/api/logout"
+    }).factory("apiFactory", function (API) {
+        return function (method) {
+            return API.API_URL + API[method];
+        };
+    }).service("ViciAuth", function ($window, $http, $q, API, apiFactory) {
+        var LOCAL_TOKEN_KEY = '@@LOCAL_STORAGE.TOKEN_KEY';
+        var LOCAL_USER_ID_KEY = '@@LOCAL_STORAGE.USERID_KEY';
+
+        var username = '';
+        var _isAuthenticated = false;
+        var role = '';
+        var authToken = void 0;
+        var authUserId = void 0;
+
+        var configure = function configure(configKey, configValue) {
+            return API[configKey] = configValue;
+        };
+
+        var useCredentials = function useCredentials(token, userId) {
+            _isAuthenticated = true;
+            authToken = token;
+            authUserId = userId;
+
+            $http.defaults.headers.common['@@HEADERS.TOKEN'] = token;
+        };
+
+        var storeUserCredentials = function storeUserCredentials(token, userId) {
+            $window.localStorage.setItem(LOCAL_USER_ID_KEY, userId);
+            $window.localStorage.setItem(LOCAL_TOKEN_KEY, token);
+
+            useCredentials(token, userId);
+        };
+
+        var loadUserCredentials = function loadUserCredentials() {
+            var token = $window.localStorage.getItem(LOCAL_TOKEN_KEY);
+            var userId = $window.localStorage.getItem(LOCAL_USER_ID_KEY);
+
+            if (token) {
+                useCredentials(token, userId);
+            }
+        };
+
+        var destroyUserCredentials = function destroyUserCredentials() {
+            authToken = undefined;
+            authUserId = undefined;
+            _isAuthenticated = false;
+
+            $http.defaults.headers.common['X-Auth-Token'] = undefined;
+
+            $window.localStorage.removeItem(LOCAL_TOKEN_KEY);
+            $window.localStorage.removeItem(LOCAL_USER_ID_KEY);
+        };
+
+        var loginSignupFnFactory = function loginSignupFnFactory(loginOrSignup) {
+            return function (postData) {
+                return $q(function (resolve, reject) {
+                    return $http.post(apiFactory(loginOrSignup), postData).success(function (data) {
+                        storeUserCredentials(data.token, data.userId);
+
+                        return resolve(data);
+                    }).error(function (data) {
+                        return reject(data);
+                    });
+                });
+            };
+        };
+
+        var login = loginSignupFnFactory('LOGIN');
+
+        var signup = loginSignupFnFactory('SIGNUP');
+
+        var validate = function validate(callback) {
+            return $http.post(apiFactory("VALIDATE"), {
+                token: $window.localStorage.getItem(LOCAL_TOKEN_KEY)
+            }).then(function (response) {
+                return callback(response.data);
+            });
+        };
+
+        var logout = function logout() {
+            return $http.post(apiFactory("LOGOUT")).then(function (data) {
+                return destroyUserCredentials();
+            });
+        };
+
+        var me = function me(callback, errFn) {
+            return $http.get(apiFactory("ME")).then(function (response) {
+                return callback(response.data);
+            }, function (response) {
+                return errFn(response);
+            });
+        };
+
+        return {
+            me: me, configure: configure, validate: validate, login: login, signup: signup, logout: logout, loadUserCredentials: loadUserCredentials, destroyUserCredentials: destroyUserCredentials,
+            getUserId: function getUserId() {
+                return authUserId;
+            },
+            getToken: function getToken() {
+                return authToken;
+            },
+            isAuthenticated: function isAuthenticated() {
+                return _isAuthenticated;
+            }
+        };
+    }).run(function (ViciAuth) {
+        return ViciAuth.loadUserCredentials();
+    });
+};
+
+/***/ }),
+/* 2 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
 exports.default = feed;
 
-var _template = __webpack_require__(15);
+var _template = __webpack_require__(19);
 
 var _template2 = _interopRequireDefault(_template);
 
@@ -4705,7 +4833,7 @@ function feed() {
 };
 
 /***/ }),
-/* 2 */
+/* 3 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -4721,7 +4849,7 @@ function http($httpProvider) {
 };
 
 /***/ }),
-/* 3 */
+/* 4 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -4738,7 +4866,7 @@ function routing($locationProvider, $urlMatcherFactoryProvider) {
 };
 
 /***/ }),
-/* 4 */
+/* 5 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -4751,14 +4879,22 @@ exports.default = state;
 function state($stateProvider, $urlRouterProvider) {
 	$urlRouterProvider.otherwise("/");
 
-	$stateProvider.state('starter', {
+  $stateProvider
+  .state('starter', {
 		templateUrl: "/templates/layout.html",
 		controller: "mainController"
-	}).state('starter.welcome', {
+  })
+  .state('starter.welcome', {
 		url: "/welcome",
 		templateUrl: "/templates/welcome.html",
 		controller: "welcomeController"
-	}).state('starter.login', {
+  })
+  .state('starter.thankyou', {
+		url: "/thank-you",
+    templateUrl: "/templates/thank-you.html",
+    controller: "welcomeController"
+  })
+  .state('starter.login', {
 		url: "/login?code",
 		templateUrl: "/templates/login.html",
 		controller: "welcomeController"
@@ -4887,7 +5023,7 @@ function state($stateProvider, $urlRouterProvider) {
 };
 
 /***/ }),
-/* 5 */
+/* 6 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -4912,7 +5048,7 @@ var DraftsCtrl = function DraftsCtrl($scope, $stateParams, $http) {
 exports.default = DraftsCtrl;
 
 /***/ }),
-/* 6 */
+/* 7 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -5083,7 +5219,7 @@ var EditorCtrl = function EditorCtrl($rootScope, $state, $scope, $stateParams, $
 exports.default = EditorCtrl;
 
 /***/ }),
-/* 7 */
+/* 8 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -5271,7 +5407,7 @@ var FeedsCtrl = function FeedsCtrl($rootScope, $scope, $stateParams, $location, 
 exports.default = FeedsCtrl;
 
 /***/ }),
-/* 8 */
+/* 9 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -5561,7 +5697,7 @@ var ProfileCtrl = function ProfileCtrl($rootScope, $stateParams, $scope, $sce, $
 exports.default = ProfileCtrl;
 
 /***/ }),
-/* 9 */
+/* 10 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -5577,6 +5713,8 @@ var WelcomeCtrl = function WelcomeCtrl($rootScope, $scope, $location, $state, $h
 	_classCallCheck(this, WelcomeCtrl);
 
 	$scope.message = "";
+
+	$scope.hashtags = ["general", "crypto", "fiction", "art", "music", "science", "funny", "photos", "meta"];
 
 	if ($location.search().code) {
 		switch ($location.search().code) {
@@ -5616,7 +5754,6 @@ var WelcomeCtrl = function WelcomeCtrl($rootScope, $scope, $location, $state, $h
 	};
 
 	$rootScope.signup = function (data) {
-
 		if (!data.username) {
 			return alert("Username is required!");
 		}
@@ -5655,21 +5792,21 @@ var WelcomeCtrl = function WelcomeCtrl($rootScope, $scope, $location, $state, $h
 exports.default = WelcomeCtrl;
 
 /***/ }),
-/* 10 */
+/* 11 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;/*!
- * jQuery JavaScript Library v3.1.1
+ * jQuery JavaScript Library v3.3.1
  * https://jquery.com/
  *
  * Includes Sizzle.js
  * https://sizzlejs.com/
  *
- * Copyright jQuery Foundation and other contributors
+ * Copyright JS Foundation and other contributors
  * Released under the MIT license
  * https://jquery.org/license
  *
- * Date: 2016-09-22T22:30Z
+ * Date: 2018-01-20T17:24Z
  */
 ( function( global, factory ) {
 
@@ -5731,16 +5868,57 @@ var ObjectFunctionString = fnToString.call( Object );
 
 var support = {};
 
+var isFunction = function isFunction( obj ) {
+
+      // Support: Chrome <=57, Firefox <=52
+      // In some browsers, typeof returns "function" for HTML <object> elements
+      // (i.e., `typeof document.createElement( "object" ) === "function"`).
+      // We don't want to classify *any* DOM node as a function.
+      return typeof obj === "function" && typeof obj.nodeType !== "number";
+  };
 
 
-	function DOMEval( code, doc ) {
+var isWindow = function isWindow( obj ) {
+		return obj != null && obj === obj.window;
+	};
+
+
+
+
+	var preservedScriptAttributes = {
+		type: true,
+		src: true,
+		noModule: true
+	};
+
+	function DOMEval( code, doc, node ) {
 		doc = doc || document;
 
-		var script = doc.createElement( "script" );
+		var i,
+			script = doc.createElement( "script" );
 
 		script.text = code;
+		if ( node ) {
+			for ( i in preservedScriptAttributes ) {
+				if ( node[ i ] ) {
+					script[ i ] = node[ i ];
+				}
+			}
+		}
 		doc.head.appendChild( script ).parentNode.removeChild( script );
 	}
+
+
+function toType( obj ) {
+	if ( obj == null ) {
+		return obj + "";
+	}
+
+	// Support: Android <=2.3 only (functionish RegExp)
+	return typeof obj === "object" || typeof obj === "function" ?
+		class2type[ toString.call( obj ) ] || "object" :
+		typeof obj;
+}
 /* global Symbol */
 // Defining this global in .eslintrc.json would create a danger of using the global
 // unguarded in another place, it seems safer to define global only for this module
@@ -5748,7 +5926,7 @@ var support = {};
 
 
 var
-	version = "3.1.1",
+	version = "3.3.1",
 
 	// Define a local copy of jQuery
 	jQuery = function( selector, context ) {
@@ -5760,16 +5938,7 @@ var
 
 	// Support: Android <=4.0 only
 	// Make sure we trim BOM and NBSP
-	rtrim = /^[\s\uFEFF\xA0]+|[\s\uFEFF\xA0]+$/g,
-
-	// Matches dashed string for camelizing
-	rmsPrefix = /^-ms-/,
-	rdashAlpha = /-([a-z])/g,
-
-	// Used by jQuery.camelCase as callback to replace()
-	fcamelCase = function( all, letter ) {
-		return letter.toUpperCase();
-	};
+	rtrim = /^[\s\uFEFF\xA0]+|[\s\uFEFF\xA0]+$/g;
 
 jQuery.fn = jQuery.prototype = {
 
@@ -5869,7 +6038,7 @@ jQuery.extend = jQuery.fn.extend = function() {
 	}
 
 	// Handle case when target is a string or something (possible in deep copy)
-	if ( typeof target !== "object" && !jQuery.isFunction( target ) ) {
+	if ( typeof target !== "object" && !isFunction( target ) ) {
 		target = {};
 	}
 
@@ -5896,11 +6065,11 @@ jQuery.extend = jQuery.fn.extend = function() {
 
 				// Recurse if we're merging plain objects or arrays
 				if ( deep && copy && ( jQuery.isPlainObject( copy ) ||
-					( copyIsArray = jQuery.isArray( copy ) ) ) ) {
+					( copyIsArray = Array.isArray( copy ) ) ) ) {
 
 					if ( copyIsArray ) {
 						copyIsArray = false;
-						clone = src && jQuery.isArray( src ) ? src : [];
+						clone = src && Array.isArray( src ) ? src : [];
 
 					} else {
 						clone = src && jQuery.isPlainObject( src ) ? src : {};
@@ -5935,30 +6104,6 @@ jQuery.extend( {
 
 	noop: function() {},
 
-	isFunction: function( obj ) {
-		return jQuery.type( obj ) === "function";
-	},
-
-	isArray: Array.isArray,
-
-	isWindow: function( obj ) {
-		return obj != null && obj === obj.window;
-	},
-
-	isNumeric: function( obj ) {
-
-		// As of jQuery 3.0, isNumeric is limited to
-		// strings and numbers (primitives or objects)
-		// that can be coerced to finite numbers (gh-2662)
-		var type = jQuery.type( obj );
-		return ( type === "number" || type === "string" ) &&
-
-			// parseFloat NaNs numeric-cast false positives ("")
-			// ...but misinterprets leading-number strings, particularly hex literals ("0x...")
-			// subtraction forces infinities to NaN
-			!isNaN( obj - parseFloat( obj ) );
-	},
-
 	isPlainObject: function( obj ) {
 		var proto, Ctor;
 
@@ -5992,31 +6137,9 @@ jQuery.extend( {
 		return true;
 	},
 
-	type: function( obj ) {
-		if ( obj == null ) {
-			return obj + "";
-		}
-
-		// Support: Android <=2.3 only (functionish RegExp)
-		return typeof obj === "object" || typeof obj === "function" ?
-			class2type[ toString.call( obj ) ] || "object" :
-			typeof obj;
-	},
-
 	// Evaluates a script in a global context
 	globalEval: function( code ) {
 		DOMEval( code );
-	},
-
-	// Convert dashed to camelCase; used by the css and data modules
-	// Support: IE <=9 - 11, Edge 12 - 13
-	// Microsoft forgot to hump their vendor prefix (#9572)
-	camelCase: function( string ) {
-		return string.replace( rmsPrefix, "ms-" ).replace( rdashAlpha, fcamelCase );
-	},
-
-	nodeName: function( elem, name ) {
-		return elem.nodeName && elem.nodeName.toLowerCase() === name.toLowerCase();
 	},
 
 	each: function( obj, callback ) {
@@ -6139,37 +6262,6 @@ jQuery.extend( {
 	// A global GUID counter for objects
 	guid: 1,
 
-	// Bind a function to a context, optionally partially applying any
-	// arguments.
-	proxy: function( fn, context ) {
-		var tmp, args, proxy;
-
-		if ( typeof context === "string" ) {
-			tmp = fn[ context ];
-			context = fn;
-			fn = tmp;
-		}
-
-		// Quick check to determine if target is callable, in the spec
-		// this throws a TypeError, but we will just return undefined.
-		if ( !jQuery.isFunction( fn ) ) {
-			return undefined;
-		}
-
-		// Simulated bind
-		args = slice.call( arguments, 2 );
-		proxy = function() {
-			return fn.apply( context || this, args.concat( slice.call( arguments ) ) );
-		};
-
-		// Set the guid of unique handler to the same of original handler, so it can be removed
-		proxy.guid = fn.guid = fn.guid || jQuery.guid++;
-
-		return proxy;
-	},
-
-	now: Date.now,
-
 	// jQuery.support is not used in Core but other projects attach their
 	// properties to it so it needs to exist.
 	support: support
@@ -6192,9 +6284,9 @@ function isArrayLike( obj ) {
 	// hasOwn isn't used here due to false negatives
 	// regarding Nodelist length in IE
 	var length = !!obj && "length" in obj && obj.length,
-		type = jQuery.type( obj );
+		type = toType( obj );
 
-	if ( type === "function" || jQuery.isWindow( obj ) ) {
+	if ( isFunction( obj ) || isWindow( obj ) ) {
 		return false;
 	}
 
@@ -8503,15 +8595,20 @@ var siblings = function( n, elem ) {
 
 var rneedsContext = jQuery.expr.match.needsContext;
 
+
+
+function nodeName( elem, name ) {
+
+  return elem.nodeName && elem.nodeName.toLowerCase() === name.toLowerCase();
+
+};
 var rsingleTag = ( /^<([a-z][^\/\0>:\x20\t\r\n\f]*)[\x20\t\r\n\f]*\/?>(?:<\/\1>|)$/i );
 
 
 
-var risSimple = /^.[^:#\[\.,]*$/;
-
 // Implement the identical functionality for filter and not
 function winnow( elements, qualifier, not ) {
-	if ( jQuery.isFunction( qualifier ) ) {
+	if ( isFunction( qualifier ) ) {
 		return jQuery.grep( elements, function( elem, i ) {
 			return !!qualifier.call( elem, i, elem ) !== not;
 		} );
@@ -8531,16 +8628,8 @@ function winnow( elements, qualifier, not ) {
 		} );
 	}
 
-	// Simple selector that can be filtered directly, removing non-Elements
-	if ( risSimple.test( qualifier ) ) {
-		return jQuery.filter( qualifier, elements, not );
-	}
-
-	// Complex selector, compare the two sets, removing non-Elements
-	qualifier = jQuery.filter( qualifier, elements );
-	return jQuery.grep( elements, function( elem ) {
-		return ( indexOf.call( qualifier, elem ) > -1 ) !== not && elem.nodeType === 1;
-	} );
+	// Filtered directly for both simple and complex selectors
+	return jQuery.filter( qualifier, elements, not );
 }
 
 jQuery.filter = function( expr, elems, not ) {
@@ -8661,7 +8750,7 @@ var rootjQuery,
 						for ( match in context ) {
 
 							// Properties of context are called as methods if possible
-							if ( jQuery.isFunction( this[ match ] ) ) {
+							if ( isFunction( this[ match ] ) ) {
 								this[ match ]( context[ match ] );
 
 							// ...and otherwise set as attributes
@@ -8704,7 +8793,7 @@ var rootjQuery,
 
 		// HANDLE: $(function)
 		// Shortcut for document ready
-		} else if ( jQuery.isFunction( selector ) ) {
+		} else if ( isFunction( selector ) ) {
 			return root.ready !== undefined ?
 				root.ready( selector ) :
 
@@ -8854,7 +8943,18 @@ jQuery.each( {
 		return siblings( elem.firstChild );
 	},
 	contents: function( elem ) {
-		return elem.contentDocument || jQuery.merge( [], elem.childNodes );
+        if ( nodeName( elem, "iframe" ) ) {
+            return elem.contentDocument;
+        }
+
+        // Support: IE 9 - 11 only, iOS 7 only, Android Browser <=4.3 only
+        // Treat the template element as a regular one in browsers that
+        // don't support it.
+        if ( nodeName( elem, "template" ) ) {
+            elem = elem.content || elem;
+        }
+
+        return jQuery.merge( [], elem.childNodes );
 	}
 }, function( name, fn ) {
 	jQuery.fn[ name ] = function( until, selector ) {
@@ -8952,7 +9052,7 @@ jQuery.Callbacks = function( options ) {
 		fire = function() {
 
 			// Enforce single-firing
-			locked = options.once;
+			locked = locked || options.once;
 
 			// Execute callbacks for all pending executions,
 			// respecting firingIndex overrides and runtime changes
@@ -9008,11 +9108,11 @@ jQuery.Callbacks = function( options ) {
 
 					( function add( args ) {
 						jQuery.each( args, function( _, arg ) {
-							if ( jQuery.isFunction( arg ) ) {
+							if ( isFunction( arg ) ) {
 								if ( !options.unique || !self.has( arg ) ) {
 									list.push( arg );
 								}
-							} else if ( arg && arg.length && jQuery.type( arg ) !== "string" ) {
+							} else if ( arg && arg.length && toType( arg ) !== "string" ) {
 
 								// Inspect recursively
 								add( arg );
@@ -9121,25 +9221,26 @@ function Thrower( ex ) {
 	throw ex;
 }
 
-function adoptValue( value, resolve, reject ) {
+function adoptValue( value, resolve, reject, noValue ) {
 	var method;
 
 	try {
 
 		// Check for promise aspect first to privilege synchronous behavior
-		if ( value && jQuery.isFunction( ( method = value.promise ) ) ) {
+		if ( value && isFunction( ( method = value.promise ) ) ) {
 			method.call( value ).done( resolve ).fail( reject );
 
 		// Other thenables
-		} else if ( value && jQuery.isFunction( ( method = value.then ) ) ) {
+		} else if ( value && isFunction( ( method = value.then ) ) ) {
 			method.call( value, resolve, reject );
 
 		// Other non-thenables
 		} else {
 
-			// Support: Android 4.0 only
-			// Strict mode functions invoked without .call/.apply get global-object context
-			resolve.call( undefined, value );
+			// Control `resolve` arguments by letting Array#slice cast boolean `noValue` to integer:
+			// * false: [ value ].slice( 0 ) => resolve( value )
+			// * true: [ value ].slice( 1 ) => resolve()
+			resolve.apply( undefined, [ value ].slice( noValue ) );
 		}
 
 	// For Promises/A+, convert exceptions into rejections
@@ -9149,7 +9250,7 @@ function adoptValue( value, resolve, reject ) {
 
 		// Support: Android 4.0 only
 		// Strict mode functions invoked without .call/.apply get global-object context
-		reject.call( undefined, value );
+		reject.apply( undefined, [ value ] );
 	}
 }
 
@@ -9188,14 +9289,14 @@ jQuery.extend( {
 						jQuery.each( tuples, function( i, tuple ) {
 
 							// Map tuples (progress, done, fail) to arguments (done, fail, progress)
-							var fn = jQuery.isFunction( fns[ tuple[ 4 ] ] ) && fns[ tuple[ 4 ] ];
+							var fn = isFunction( fns[ tuple[ 4 ] ] ) && fns[ tuple[ 4 ] ];
 
 							// deferred.progress(function() { bind to newDefer or newDefer.notify })
 							// deferred.done(function() { bind to newDefer or newDefer.resolve })
 							// deferred.fail(function() { bind to newDefer or newDefer.reject })
 							deferred[ tuple[ 1 ] ]( function() {
 								var returned = fn && fn.apply( this, arguments );
-								if ( returned && jQuery.isFunction( returned.promise ) ) {
+								if ( returned && isFunction( returned.promise ) ) {
 									returned.promise()
 										.progress( newDefer.notify )
 										.done( newDefer.resolve )
@@ -9249,7 +9350,7 @@ jQuery.extend( {
 										returned.then;
 
 									// Handle a returned thenable
-									if ( jQuery.isFunction( then ) ) {
+									if ( isFunction( then ) ) {
 
 										// Special processors (notify) just wait for resolution
 										if ( special ) {
@@ -9345,7 +9446,7 @@ jQuery.extend( {
 							resolve(
 								0,
 								newDefer,
-								jQuery.isFunction( onProgress ) ?
+								isFunction( onProgress ) ?
 									onProgress :
 									Identity,
 								newDefer.notifyWith
@@ -9357,7 +9458,7 @@ jQuery.extend( {
 							resolve(
 								0,
 								newDefer,
-								jQuery.isFunction( onFulfilled ) ?
+								isFunction( onFulfilled ) ?
 									onFulfilled :
 									Identity
 							)
@@ -9368,7 +9469,7 @@ jQuery.extend( {
 							resolve(
 								0,
 								newDefer,
-								jQuery.isFunction( onRejected ) ?
+								isFunction( onRejected ) ?
 									onRejected :
 									Thrower
 							)
@@ -9408,8 +9509,15 @@ jQuery.extend( {
 					// fulfilled_callbacks.disable
 					tuples[ 3 - i ][ 2 ].disable,
 
+					// rejected_handlers.disable
+					// fulfilled_handlers.disable
+					tuples[ 3 - i ][ 3 ].disable,
+
 					// progress_callbacks.lock
-					tuples[ 0 ][ 2 ].lock
+					tuples[ 0 ][ 2 ].lock,
+
+					// progress_handlers.lock
+					tuples[ 0 ][ 3 ].lock
 				);
 			}
 
@@ -9474,11 +9582,12 @@ jQuery.extend( {
 
 		// Single- and empty arguments are adopted like Promise.resolve
 		if ( remaining <= 1 ) {
-			adoptValue( singleValue, master.done( updateFunc( i ) ).resolve, master.reject );
+			adoptValue( singleValue, master.done( updateFunc( i ) ).resolve, master.reject,
+				!remaining );
 
 			// Use .then() to unwrap secondary thenables (cf. gh-3000)
 			if ( master.state() === "pending" ||
-				jQuery.isFunction( resolveValues[ i ] && resolveValues[ i ].then ) ) {
+				isFunction( resolveValues[ i ] && resolveValues[ i ].then ) ) {
 
 				return master.then();
 			}
@@ -9546,15 +9655,6 @@ jQuery.extend( {
 	// the ready event fires. See #6781
 	readyWait: 1,
 
-	// Hold (or release) the ready event
-	holdReady: function( hold ) {
-		if ( hold ) {
-			jQuery.readyWait++;
-		} else {
-			jQuery.ready( true );
-		}
-	},
-
 	// Handle when the DOM is ready
 	ready: function( wait ) {
 
@@ -9615,7 +9715,7 @@ var access = function( elems, fn, key, value, chainable, emptyGet, raw ) {
 		bulk = key == null;
 
 	// Sets many values
-	if ( jQuery.type( key ) === "object" ) {
+	if ( toType( key ) === "object" ) {
 		chainable = true;
 		for ( i in key ) {
 			access( elems, fn, i, key[ i ], true, emptyGet, raw );
@@ -9625,7 +9725,7 @@ var access = function( elems, fn, key, value, chainable, emptyGet, raw ) {
 	} else if ( value !== undefined ) {
 		chainable = true;
 
-		if ( !jQuery.isFunction( value ) ) {
+		if ( !isFunction( value ) ) {
 			raw = true;
 		}
 
@@ -9667,6 +9767,23 @@ var access = function( elems, fn, key, value, chainable, emptyGet, raw ) {
 
 	return len ? fn( elems[ 0 ], key ) : emptyGet;
 };
+
+
+// Matches dashed string for camelizing
+var rmsPrefix = /^-ms-/,
+	rdashAlpha = /-([a-z])/g;
+
+// Used by camelCase as callback to replace()
+function fcamelCase( all, letter ) {
+	return letter.toUpperCase();
+}
+
+// Convert dashed to camelCase; used by the css and data modules
+// Support: IE <=9 - 11, Edge 12 - 15
+// Microsoft forgot to hump their vendor prefix (#9572)
+function camelCase( string ) {
+	return string.replace( rmsPrefix, "ms-" ).replace( rdashAlpha, fcamelCase );
+}
 var acceptData = function( owner ) {
 
 	// Accepts only:
@@ -9729,14 +9846,14 @@ Data.prototype = {
 		// Handle: [ owner, key, value ] args
 		// Always use camelCase key (gh-2257)
 		if ( typeof data === "string" ) {
-			cache[ jQuery.camelCase( data ) ] = value;
+			cache[ camelCase( data ) ] = value;
 
 		// Handle: [ owner, { properties } ] args
 		} else {
 
 			// Copy the properties one-by-one to the cache object
 			for ( prop in data ) {
-				cache[ jQuery.camelCase( prop ) ] = data[ prop ];
+				cache[ camelCase( prop ) ] = data[ prop ];
 			}
 		}
 		return cache;
@@ -9746,7 +9863,7 @@ Data.prototype = {
 			this.cache( owner ) :
 
 			// Always use camelCase key (gh-2257)
-			owner[ this.expando ] && owner[ this.expando ][ jQuery.camelCase( key ) ];
+			owner[ this.expando ] && owner[ this.expando ][ camelCase( key ) ];
 	},
 	access: function( owner, key, value ) {
 
@@ -9790,13 +9907,13 @@ Data.prototype = {
 		if ( key !== undefined ) {
 
 			// Support array or space separated string of keys
-			if ( jQuery.isArray( key ) ) {
+			if ( Array.isArray( key ) ) {
 
 				// If key is an array of keys...
 				// We always set camelCase keys, so remove that.
-				key = key.map( jQuery.camelCase );
+				key = key.map( camelCase );
 			} else {
-				key = jQuery.camelCase( key );
+				key = camelCase( key );
 
 				// If a key with the spaces exists, use it.
 				// Otherwise, create an array by matching non-whitespace
@@ -9942,7 +10059,7 @@ jQuery.fn.extend( {
 						if ( attrs[ i ] ) {
 							name = attrs[ i ].name;
 							if ( name.indexOf( "data-" ) === 0 ) {
-								name = jQuery.camelCase( name.slice( 5 ) );
+								name = camelCase( name.slice( 5 ) );
 								dataAttr( elem, name, data[ name ] );
 							}
 						}
@@ -10016,7 +10133,7 @@ jQuery.extend( {
 
 			// Speed up dequeue by getting out quickly if this is just a lookup
 			if ( data ) {
-				if ( !queue || jQuery.isArray( data ) ) {
+				if ( !queue || Array.isArray( data ) ) {
 					queue = dataPriv.access( elem, type, jQuery.makeArray( data ) );
 				} else {
 					queue.push( data );
@@ -10189,8 +10306,7 @@ var swap = function( elem, options, callback, args ) {
 
 
 function adjustCSS( elem, prop, valueParts, tween ) {
-	var adjusted,
-		scale = 1,
+	var adjusted, scale,
 		maxIterations = 20,
 		currentValue = tween ?
 			function() {
@@ -10208,30 +10324,33 @@ function adjustCSS( elem, prop, valueParts, tween ) {
 
 	if ( initialInUnit && initialInUnit[ 3 ] !== unit ) {
 
+		// Support: Firefox <=54
+		// Halve the iteration target value to prevent interference from CSS upper bounds (gh-2144)
+		initial = initial / 2;
+
 		// Trust units reported by jQuery.css
 		unit = unit || initialInUnit[ 3 ];
-
-		// Make sure we update the tween properties later on
-		valueParts = valueParts || [];
 
 		// Iteratively approximate from a nonzero starting point
 		initialInUnit = +initial || 1;
 
-		do {
+		while ( maxIterations-- ) {
 
-			// If previous iteration zeroed out, double until we get *something*.
-			// Use string for doubling so we don't accidentally see scale as unchanged below
-			scale = scale || ".5";
-
-			// Adjust and apply
-			initialInUnit = initialInUnit / scale;
+			// Evaluate and update our best guess (doubling guesses that zero out).
+			// Finish if the scale equals or crosses 1 (making the old*new product non-positive).
 			jQuery.style( elem, prop, initialInUnit + unit );
+			if ( ( 1 - scale ) * ( 1 - ( scale = currentValue() / initial || 0.5 ) ) <= 0 ) {
+				maxIterations = 0;
+			}
+			initialInUnit = initialInUnit / scale;
 
-		// Update scale, tolerating zero or NaN from tween.cur()
-		// Break the loop if scale is unchanged or perfect, or if we've just had enough.
-		} while (
-			scale !== ( scale = currentValue() / initial ) && scale !== 1 && --maxIterations
-		);
+		}
+
+		initialInUnit = initialInUnit * 2;
+		jQuery.style( elem, prop, initialInUnit + unit );
+
+		// Make sure we update the tween properties later on
+		valueParts = valueParts || [];
 	}
 
 	if ( valueParts ) {
@@ -10349,7 +10468,7 @@ var rcheckableType = ( /^(?:checkbox|radio)$/i );
 
 var rtagName = ( /<([a-z][^\/\0>\x20\t\r\n\f]+)/i );
 
-var rscriptType = ( /^$|\/(?:java|ecma)script/i );
+var rscriptType = ( /^$|^module$|\/(?:java|ecma)script/i );
 
 
 
@@ -10393,7 +10512,7 @@ function getAll( context, tag ) {
 		ret = [];
 	}
 
-	if ( tag === undefined || tag && jQuery.nodeName( context, tag ) ) {
+	if ( tag === undefined || tag && nodeName( context, tag ) ) {
 		return jQuery.merge( [ context ], ret );
 	}
 
@@ -10431,7 +10550,7 @@ function buildFragment( elems, context, scripts, selection, ignored ) {
 		if ( elem || elem === 0 ) {
 
 			// Add nodes directly
-			if ( jQuery.type( elem ) === "object" ) {
+			if ( toType( elem ) === "object" ) {
 
 				// Support: Android <=4.0 only, PhantomJS 1 only
 				// push.apply(_, arraylike) throws on ancient WebKit
@@ -10941,7 +11060,7 @@ jQuery.event = {
 			enumerable: true,
 			configurable: true,
 
-			get: jQuery.isFunction( hook ) ?
+			get: isFunction( hook ) ?
 				function() {
 					if ( this.originalEvent ) {
 							return hook( this.originalEvent );
@@ -11000,7 +11119,7 @@ jQuery.event = {
 
 			// For checkbox, fire native event so checked state will be right
 			trigger: function() {
-				if ( this.type === "checkbox" && this.click && jQuery.nodeName( this, "input" ) ) {
+				if ( this.type === "checkbox" && this.click && nodeName( this, "input" ) ) {
 					this.click();
 					return false;
 				}
@@ -11008,7 +11127,7 @@ jQuery.event = {
 
 			// For cross-browser consistency, don't fire native .click() on links
 			_default: function( event ) {
-				return jQuery.nodeName( event.target, "a" );
+				return nodeName( event.target, "a" );
 			}
 		},
 
@@ -11076,7 +11195,7 @@ jQuery.Event = function( src, props ) {
 	}
 
 	// Create a timestamp if incoming event doesn't have one
-	this.timeStamp = src && src.timeStamp || jQuery.now();
+	this.timeStamp = src && src.timeStamp || Date.now();
 
 	// Mark it as fixed
 	this[ jQuery.expando ] = true;
@@ -11275,21 +11394,21 @@ var
 
 	/* eslint-enable */
 
-	// Support: IE <=10 - 11, Edge 12 - 13
+	// Support: IE <=10 - 11, Edge 12 - 13 only
 	// In IE/Edge using regex groups here causes severe slowdowns.
 	// See https://connect.microsoft.com/IE/feedback/details/1736512/
 	rnoInnerhtml = /<script|<style|<link/i,
 
 	// checked="checked" or checked
 	rchecked = /checked\s*(?:[^=]|=\s*.checked.)/i,
-	rscriptTypeMasked = /^true\/(.*)/,
 	rcleanScript = /^\s*<!(?:\[CDATA\[|--)|(?:\]\]|--)>\s*$/g;
 
+// Prefer a tbody over its parent table for containing new rows
 function manipulationTarget( elem, content ) {
-	if ( jQuery.nodeName( elem, "table" ) &&
-		jQuery.nodeName( content.nodeType !== 11 ? content : content.firstChild, "tr" ) ) {
+	if ( nodeName( elem, "table" ) &&
+		nodeName( content.nodeType !== 11 ? content : content.firstChild, "tr" ) ) {
 
-		return elem.getElementsByTagName( "tbody" )[ 0 ] || elem;
+		return jQuery( elem ).children( "tbody" )[ 0 ] || elem;
 	}
 
 	return elem;
@@ -11301,10 +11420,8 @@ function disableScript( elem ) {
 	return elem;
 }
 function restoreScript( elem ) {
-	var match = rscriptTypeMasked.exec( elem.type );
-
-	if ( match ) {
-		elem.type = match[ 1 ];
+	if ( ( elem.type || "" ).slice( 0, 5 ) === "true/" ) {
+		elem.type = elem.type.slice( 5 );
 	} else {
 		elem.removeAttribute( "type" );
 	}
@@ -11370,15 +11487,15 @@ function domManip( collection, args, callback, ignored ) {
 		l = collection.length,
 		iNoClone = l - 1,
 		value = args[ 0 ],
-		isFunction = jQuery.isFunction( value );
+		valueIsFunction = isFunction( value );
 
 	// We can't cloneNode fragments that contain checked, in WebKit
-	if ( isFunction ||
+	if ( valueIsFunction ||
 			( l > 1 && typeof value === "string" &&
 				!support.checkClone && rchecked.test( value ) ) ) {
 		return collection.each( function( index ) {
 			var self = collection.eq( index );
-			if ( isFunction ) {
+			if ( valueIsFunction ) {
 				args[ 0 ] = value.call( this, index, self.html() );
 			}
 			domManip( self, args, callback, ignored );
@@ -11432,14 +11549,14 @@ function domManip( collection, args, callback, ignored ) {
 						!dataPriv.access( node, "globalEval" ) &&
 						jQuery.contains( doc, node ) ) {
 
-						if ( node.src ) {
+						if ( node.src && ( node.type || "" ).toLowerCase()  !== "module" ) {
 
 							// Optional AJAX dependency, but won't run scripts if not present
 							if ( jQuery._evalUrl ) {
 								jQuery._evalUrl( node.src );
 							}
 						} else {
-							DOMEval( node.textContent.replace( rcleanScript, "" ), doc );
+							DOMEval( node.textContent.replace( rcleanScript, "" ), doc, node );
 						}
 					}
 				}
@@ -11719,8 +11836,6 @@ jQuery.each( {
 		return this.pushStack( ret );
 	};
 } );
-var rmargin = ( /^margin/ );
-
 var rnumnonpx = new RegExp( "^(" + pnum + ")(?!px)[a-z%]+$", "i" );
 
 var getStyles = function( elem ) {
@@ -11737,6 +11852,8 @@ var getStyles = function( elem ) {
 		return view.getComputedStyle( elem );
 	};
 
+var rboxStyle = new RegExp( cssExpand.join( "|" ), "i" );
+
 
 
 ( function() {
@@ -11750,25 +11867,33 @@ var getStyles = function( elem ) {
 			return;
 		}
 
+		container.style.cssText = "position:absolute;left:-11111px;width:60px;" +
+			"margin-top:1px;padding:0;border:0";
 		div.style.cssText =
-			"box-sizing:border-box;" +
-			"position:relative;display:block;" +
+			"position:relative;display:block;box-sizing:border-box;overflow:scroll;" +
 			"margin:auto;border:1px;padding:1px;" +
-			"top:1%;width:50%";
-		div.innerHTML = "";
-		documentElement.appendChild( container );
+			"width:60%;top:1%";
+		documentElement.appendChild( container ).appendChild( div );
 
 		var divStyle = window.getComputedStyle( div );
 		pixelPositionVal = divStyle.top !== "1%";
 
 		// Support: Android 4.0 - 4.3 only, Firefox <=3 - 44
-		reliableMarginLeftVal = divStyle.marginLeft === "2px";
-		boxSizingReliableVal = divStyle.width === "4px";
+		reliableMarginLeftVal = roundPixelMeasures( divStyle.marginLeft ) === 12;
 
-		// Support: Android 4.0 - 4.3 only
+		// Support: Android 4.0 - 4.3 only, Safari <=9.1 - 10.1, iOS <=7.0 - 9.3
 		// Some styles come back with percentage values, even though they shouldn't
-		div.style.marginRight = "50%";
-		pixelMarginRightVal = divStyle.marginRight === "4px";
+		div.style.right = "60%";
+		pixelBoxStylesVal = roundPixelMeasures( divStyle.right ) === 36;
+
+		// Support: IE 9 - 11 only
+		// Detect misreporting of content dimensions for box-sizing:border-box elements
+		boxSizingReliableVal = roundPixelMeasures( divStyle.width ) === 36;
+
+		// Support: IE 9 only
+		// Detect overflow:scroll screwiness (gh-3699)
+		div.style.position = "absolute";
+		scrollboxSizeVal = div.offsetWidth === 36 || "absolute";
 
 		documentElement.removeChild( container );
 
@@ -11777,7 +11902,12 @@ var getStyles = function( elem ) {
 		div = null;
 	}
 
-	var pixelPositionVal, boxSizingReliableVal, pixelMarginRightVal, reliableMarginLeftVal,
+	function roundPixelMeasures( measure ) {
+		return Math.round( parseFloat( measure ) );
+	}
+
+	var pixelPositionVal, boxSizingReliableVal, scrollboxSizeVal, pixelBoxStylesVal,
+		reliableMarginLeftVal,
 		container = document.createElement( "div" ),
 		div = document.createElement( "div" );
 
@@ -11792,26 +11922,26 @@ var getStyles = function( elem ) {
 	div.cloneNode( true ).style.backgroundClip = "";
 	support.clearCloneStyle = div.style.backgroundClip === "content-box";
 
-	container.style.cssText = "border:0;width:8px;height:0;top:0;left:-9999px;" +
-		"padding:0;margin-top:1px;position:absolute";
-	container.appendChild( div );
-
 	jQuery.extend( support, {
-		pixelPosition: function() {
-			computeStyleTests();
-			return pixelPositionVal;
-		},
 		boxSizingReliable: function() {
 			computeStyleTests();
 			return boxSizingReliableVal;
 		},
-		pixelMarginRight: function() {
+		pixelBoxStyles: function() {
 			computeStyleTests();
-			return pixelMarginRightVal;
+			return pixelBoxStylesVal;
+		},
+		pixelPosition: function() {
+			computeStyleTests();
+			return pixelPositionVal;
 		},
 		reliableMarginLeft: function() {
 			computeStyleTests();
 			return reliableMarginLeftVal;
+		},
+		scrollboxSize: function() {
+			computeStyleTests();
+			return scrollboxSizeVal;
 		}
 	} );
 } )();
@@ -11819,12 +11949,18 @@ var getStyles = function( elem ) {
 
 function curCSS( elem, name, computed ) {
 	var width, minWidth, maxWidth, ret,
+
+		// Support: Firefox 51+
+		// Retrieving style before computed somehow
+		// fixes an issue with getting wrong values
+		// on detached elements
 		style = elem.style;
 
 	computed = computed || getStyles( elem );
 
-	// Support: IE <=9 only
-	// getPropertyValue is only needed for .css('filter') (#12537)
+	// getPropertyValue is needed for:
+	//   .css('filter') (IE 9 only, #12537)
+	//   .css('--customProperty) (#3144)
 	if ( computed ) {
 		ret = computed.getPropertyValue( name ) || computed[ name ];
 
@@ -11837,7 +11973,7 @@ function curCSS( elem, name, computed ) {
 		// but width seems to be reliably pixels.
 		// This is against the CSSOM draft spec:
 		// https://drafts.csswg.org/cssom/#resolved-values
-		if ( !support.pixelMarginRight() && rnumnonpx.test( ret ) && rmargin.test( name ) ) {
+		if ( !support.pixelBoxStyles() && rnumnonpx.test( ret ) && rboxStyle.test( name ) ) {
 
 			// Remember the original values
 			width = style.width;
@@ -11890,6 +12026,7 @@ var
 	// except "table", "table-cell", or "table-caption"
 	// See here for display values: https://developer.mozilla.org/en-US/docs/CSS/display
 	rdisplayswap = /^(none|table(?!-c[ea]).+)/,
+	rcustomProp = /^--/,
 	cssShow = { position: "absolute", visibility: "hidden", display: "block" },
 	cssNormalTransform = {
 		letterSpacing: "0",
@@ -11919,6 +12056,16 @@ function vendorPropName( name ) {
 	}
 }
 
+// Return a property mapped along what jQuery.cssProps suggests or to
+// a vendor prefixed property.
+function finalPropName( name ) {
+	var ret = jQuery.cssProps[ name ];
+	if ( !ret ) {
+		ret = jQuery.cssProps[ name ] = vendorPropName( name ) || name;
+	}
+	return ret;
+}
+
 function setPositiveNumber( elem, value, subtract ) {
 
 	// Any relative (+/-) values have already been
@@ -11931,100 +12078,120 @@ function setPositiveNumber( elem, value, subtract ) {
 		value;
 }
 
-function augmentWidthOrHeight( elem, name, extra, isBorderBox, styles ) {
-	var i,
-		val = 0;
+function boxModelAdjustment( elem, dimension, box, isBorderBox, styles, computedVal ) {
+	var i = dimension === "width" ? 1 : 0,
+		extra = 0,
+		delta = 0;
 
-	// If we already have the right measurement, avoid augmentation
-	if ( extra === ( isBorderBox ? "border" : "content" ) ) {
-		i = 4;
-
-	// Otherwise initialize for horizontal or vertical properties
-	} else {
-		i = name === "width" ? 1 : 0;
+	// Adjustment may not be necessary
+	if ( box === ( isBorderBox ? "border" : "content" ) ) {
+		return 0;
 	}
 
 	for ( ; i < 4; i += 2 ) {
 
-		// Both box models exclude margin, so add it if we want it
-		if ( extra === "margin" ) {
-			val += jQuery.css( elem, extra + cssExpand[ i ], true, styles );
+		// Both box models exclude margin
+		if ( box === "margin" ) {
+			delta += jQuery.css( elem, box + cssExpand[ i ], true, styles );
 		}
 
-		if ( isBorderBox ) {
+		// If we get here with a content-box, we're seeking "padding" or "border" or "margin"
+		if ( !isBorderBox ) {
 
-			// border-box includes padding, so remove it if we want content
-			if ( extra === "content" ) {
-				val -= jQuery.css( elem, "padding" + cssExpand[ i ], true, styles );
+			// Add padding
+			delta += jQuery.css( elem, "padding" + cssExpand[ i ], true, styles );
+
+			// For "border" or "margin", add border
+			if ( box !== "padding" ) {
+				delta += jQuery.css( elem, "border" + cssExpand[ i ] + "Width", true, styles );
+
+			// But still keep track of it otherwise
+			} else {
+				extra += jQuery.css( elem, "border" + cssExpand[ i ] + "Width", true, styles );
 			}
 
-			// At this point, extra isn't border nor margin, so remove border
-			if ( extra !== "margin" ) {
-				val -= jQuery.css( elem, "border" + cssExpand[ i ] + "Width", true, styles );
-			}
+		// If we get here with a border-box (content + padding + border), we're seeking "content" or
+		// "padding" or "margin"
 		} else {
 
-			// At this point, extra isn't content, so add padding
-			val += jQuery.css( elem, "padding" + cssExpand[ i ], true, styles );
+			// For "content", subtract padding
+			if ( box === "content" ) {
+				delta -= jQuery.css( elem, "padding" + cssExpand[ i ], true, styles );
+			}
 
-			// At this point, extra isn't content nor padding, so add border
-			if ( extra !== "padding" ) {
-				val += jQuery.css( elem, "border" + cssExpand[ i ] + "Width", true, styles );
+			// For "content" or "padding", subtract border
+			if ( box !== "margin" ) {
+				delta -= jQuery.css( elem, "border" + cssExpand[ i ] + "Width", true, styles );
 			}
 		}
 	}
 
-	return val;
+	// Account for positive content-box scroll gutter when requested by providing computedVal
+	if ( !isBorderBox && computedVal >= 0 ) {
+
+		// offsetWidth/offsetHeight is a rounded sum of content, padding, scroll gutter, and border
+		// Assuming integer scroll gutter, subtract the rest and round down
+		delta += Math.max( 0, Math.ceil(
+			elem[ "offset" + dimension[ 0 ].toUpperCase() + dimension.slice( 1 ) ] -
+			computedVal -
+			delta -
+			extra -
+			0.5
+		) );
+	}
+
+	return delta;
 }
 
-function getWidthOrHeight( elem, name, extra ) {
+function getWidthOrHeight( elem, dimension, extra ) {
 
-	// Start with offset property, which is equivalent to the border-box value
-	var val,
-		valueIsBorderBox = true,
-		styles = getStyles( elem ),
-		isBorderBox = jQuery.css( elem, "boxSizing", false, styles ) === "border-box";
+	// Start with computed style
+	var styles = getStyles( elem ),
+		val = curCSS( elem, dimension, styles ),
+		isBorderBox = jQuery.css( elem, "boxSizing", false, styles ) === "border-box",
+		valueIsBorderBox = isBorderBox;
 
-	// Support: IE <=11 only
-	// Running getBoundingClientRect on a disconnected node
-	// in IE throws an error.
-	if ( elem.getClientRects().length ) {
-		val = elem.getBoundingClientRect()[ name ];
-	}
-
-	// Some non-html elements return undefined for offsetWidth, so check for null/undefined
-	// svg - https://bugzilla.mozilla.org/show_bug.cgi?id=649285
-	// MathML - https://bugzilla.mozilla.org/show_bug.cgi?id=491668
-	if ( val <= 0 || val == null ) {
-
-		// Fall back to computed then uncomputed css if necessary
-		val = curCSS( elem, name, styles );
-		if ( val < 0 || val == null ) {
-			val = elem.style[ name ];
-		}
-
-		// Computed unit is not pixels. Stop here and return.
-		if ( rnumnonpx.test( val ) ) {
+	// Support: Firefox <=54
+	// Return a confounding non-pixel value or feign ignorance, as appropriate.
+	if ( rnumnonpx.test( val ) ) {
+		if ( !extra ) {
 			return val;
 		}
-
-		// Check for style in case a browser which returns unreliable values
-		// for getComputedStyle silently falls back to the reliable elem.style
-		valueIsBorderBox = isBorderBox &&
-			( support.boxSizingReliable() || val === elem.style[ name ] );
-
-		// Normalize "", auto, and prepare for extra
-		val = parseFloat( val ) || 0;
+		val = "auto";
 	}
 
-	// Use the active box-sizing model to add/subtract irrelevant styles
+	// Check for style in case a browser which returns unreliable values
+	// for getComputedStyle silently falls back to the reliable elem.style
+	valueIsBorderBox = valueIsBorderBox &&
+		( support.boxSizingReliable() || val === elem.style[ dimension ] );
+
+	// Fall back to offsetWidth/offsetHeight when value is "auto"
+	// This happens for inline elements with no explicit setting (gh-3571)
+	// Support: Android <=4.1 - 4.3 only
+	// Also use offsetWidth/offsetHeight for misreported inline dimensions (gh-3602)
+	if ( val === "auto" ||
+		!parseFloat( val ) && jQuery.css( elem, "display", false, styles ) === "inline" ) {
+
+		val = elem[ "offset" + dimension[ 0 ].toUpperCase() + dimension.slice( 1 ) ];
+
+		// offsetWidth/offsetHeight provide border-box values
+		valueIsBorderBox = true;
+	}
+
+	// Normalize "" and auto
+	val = parseFloat( val ) || 0;
+
+	// Adjust for the element's box model
 	return ( val +
-		augmentWidthOrHeight(
+		boxModelAdjustment(
 			elem,
-			name,
+			dimension,
 			extra || ( isBorderBox ? "border" : "content" ),
 			valueIsBorderBox,
-			styles
+			styles,
+
+			// Provide the current computed size to request scroll gutter calculation (gh-3589)
+			val
 		)
 	) + "px";
 }
@@ -12065,9 +12232,7 @@ jQuery.extend( {
 
 	// Add in properties whose names you wish to fix before
 	// setting or getting the value
-	cssProps: {
-		"float": "cssFloat"
-	},
+	cssProps: {},
 
 	// Get and set the style property on a DOM Node
 	style: function( elem, name, value, extra ) {
@@ -12079,11 +12244,16 @@ jQuery.extend( {
 
 		// Make sure that we're working with the right name
 		var ret, type, hooks,
-			origName = jQuery.camelCase( name ),
+			origName = camelCase( name ),
+			isCustomProp = rcustomProp.test( name ),
 			style = elem.style;
 
-		name = jQuery.cssProps[ origName ] ||
-			( jQuery.cssProps[ origName ] = vendorPropName( origName ) || origName );
+		// Make sure that we're working with the right name. We don't
+		// want to query the value if it is a CSS custom property
+		// since they are user-defined.
+		if ( !isCustomProp ) {
+			name = finalPropName( origName );
+		}
 
 		// Gets hook for the prefixed version, then unprefixed version
 		hooks = jQuery.cssHooks[ name ] || jQuery.cssHooks[ origName ];
@@ -12119,7 +12289,11 @@ jQuery.extend( {
 			if ( !hooks || !( "set" in hooks ) ||
 				( value = hooks.set( elem, value, extra ) ) !== undefined ) {
 
-				style[ name ] = value;
+				if ( isCustomProp ) {
+					style.setProperty( name, value );
+				} else {
+					style[ name ] = value;
+				}
 			}
 
 		} else {
@@ -12138,11 +12312,15 @@ jQuery.extend( {
 
 	css: function( elem, name, extra, styles ) {
 		var val, num, hooks,
-			origName = jQuery.camelCase( name );
+			origName = camelCase( name ),
+			isCustomProp = rcustomProp.test( name );
 
-		// Make sure that we're working with the right name
-		name = jQuery.cssProps[ origName ] ||
-			( jQuery.cssProps[ origName ] = vendorPropName( origName ) || origName );
+		// Make sure that we're working with the right name. We don't
+		// want to modify the value if it is a CSS custom property
+		// since they are user-defined.
+		if ( !isCustomProp ) {
+			name = finalPropName( origName );
+		}
 
 		// Try prefixed name followed by the unprefixed name
 		hooks = jQuery.cssHooks[ name ] || jQuery.cssHooks[ origName ];
@@ -12167,12 +12345,13 @@ jQuery.extend( {
 			num = parseFloat( val );
 			return extra === true || isFinite( num ) ? num || 0 : val;
 		}
+
 		return val;
 	}
 } );
 
-jQuery.each( [ "height", "width" ], function( i, name ) {
-	jQuery.cssHooks[ name ] = {
+jQuery.each( [ "height", "width" ], function( i, dimension ) {
+	jQuery.cssHooks[ dimension ] = {
 		get: function( elem, computed, extra ) {
 			if ( computed ) {
 
@@ -12188,29 +12367,41 @@ jQuery.each( [ "height", "width" ], function( i, name ) {
 					// in IE throws an error.
 					( !elem.getClientRects().length || !elem.getBoundingClientRect().width ) ?
 						swap( elem, cssShow, function() {
-							return getWidthOrHeight( elem, name, extra );
+							return getWidthOrHeight( elem, dimension, extra );
 						} ) :
-						getWidthOrHeight( elem, name, extra );
+						getWidthOrHeight( elem, dimension, extra );
 			}
 		},
 
 		set: function( elem, value, extra ) {
 			var matches,
-				styles = extra && getStyles( elem ),
-				subtract = extra && augmentWidthOrHeight(
+				styles = getStyles( elem ),
+				isBorderBox = jQuery.css( elem, "boxSizing", false, styles ) === "border-box",
+				subtract = extra && boxModelAdjustment(
 					elem,
-					name,
+					dimension,
 					extra,
-					jQuery.css( elem, "boxSizing", false, styles ) === "border-box",
+					isBorderBox,
 					styles
 				);
+
+			// Account for unreliable border-box dimensions by comparing offset* to computed and
+			// faking a content-box to get border and padding (gh-3699)
+			if ( isBorderBox && support.scrollboxSize() === styles.position ) {
+				subtract -= Math.ceil(
+					elem[ "offset" + dimension[ 0 ].toUpperCase() + dimension.slice( 1 ) ] -
+					parseFloat( styles[ dimension ] ) -
+					boxModelAdjustment( elem, dimension, "border", false, styles ) -
+					0.5
+				);
+			}
 
 			// Convert to pixels if value adjustment is needed
 			if ( subtract && ( matches = rcssNum.exec( value ) ) &&
 				( matches[ 3 ] || "px" ) !== "px" ) {
 
-				elem.style[ name ] = value;
-				value = jQuery.css( elem, name );
+				elem.style[ dimension ] = value;
+				value = jQuery.css( elem, dimension );
 			}
 
 			return setPositiveNumber( elem, value, subtract );
@@ -12254,7 +12445,7 @@ jQuery.each( {
 		}
 	};
 
-	if ( !rmargin.test( prefix ) ) {
+	if ( prefix !== "margin" ) {
 		jQuery.cssHooks[ prefix + suffix ].set = setPositiveNumber;
 	}
 } );
@@ -12266,7 +12457,7 @@ jQuery.fn.extend( {
 				map = {},
 				i = 0;
 
-			if ( jQuery.isArray( name ) ) {
+			if ( Array.isArray( name ) ) {
 				styles = getStyles( elem );
 				len = name.length;
 
@@ -12404,13 +12595,18 @@ jQuery.fx.step = {};
 
 
 var
-	fxNow, timerId,
+	fxNow, inProgress,
 	rfxtypes = /^(?:toggle|show|hide)$/,
 	rrun = /queueHooks$/;
 
-function raf() {
-	if ( timerId ) {
-		window.requestAnimationFrame( raf );
+function schedule() {
+	if ( inProgress ) {
+		if ( document.hidden === false && window.requestAnimationFrame ) {
+			window.requestAnimationFrame( schedule );
+		} else {
+			window.setTimeout( schedule, jQuery.fx.interval );
+		}
+
 		jQuery.fx.tick();
 	}
 }
@@ -12420,7 +12616,7 @@ function createFxNow() {
 	window.setTimeout( function() {
 		fxNow = undefined;
 	} );
-	return ( fxNow = jQuery.now() );
+	return ( fxNow = Date.now() );
 }
 
 // Generate parameters to create a standard animation
@@ -12524,9 +12720,10 @@ function defaultPrefilter( elem, props, opts ) {
 	// Restrict "overflow" and "display" styles during box animations
 	if ( isBox && elem.nodeType === 1 ) {
 
-		// Support: IE <=9 - 11, Edge 12 - 13
+		// Support: IE <=9 - 11, Edge 12 - 15
 		// Record all 3 overflow attributes because IE does not infer the shorthand
-		// from identically-valued overflowX and overflowY
+		// from identically-valued overflowX and overflowY and Edge just mirrors
+		// the overflowX value there.
 		opts.overflow = [ style.overflow, style.overflowX, style.overflowY ];
 
 		// Identify a display type, preferring old show/hide data over the CSS cascade
@@ -12634,10 +12831,10 @@ function propFilter( props, specialEasing ) {
 
 	// camelCase, specialEasing and expand cssHook pass
 	for ( index in props ) {
-		name = jQuery.camelCase( index );
+		name = camelCase( index );
 		easing = specialEasing[ name ];
 		value = props[ index ];
-		if ( jQuery.isArray( value ) ) {
+		if ( Array.isArray( value ) ) {
 			easing = value[ 1 ];
 			value = props[ index ] = value[ 0 ];
 		}
@@ -12696,12 +12893,19 @@ function Animation( elem, properties, options ) {
 
 			deferred.notifyWith( elem, [ animation, percent, remaining ] );
 
+			// If there's more to do, yield
 			if ( percent < 1 && length ) {
 				return remaining;
-			} else {
-				deferred.resolveWith( elem, [ animation ] );
-				return false;
 			}
+
+			// If this was an empty animation, synthesize a final progress notification
+			if ( !length ) {
+				deferred.notifyWith( elem, [ animation, 1, 0 ] );
+			}
+
+			// Resolve the animation and report its conclusion
+			deferred.resolveWith( elem, [ animation ] );
+			return false;
 		},
 		animation = deferred.promise( {
 			elem: elem,
@@ -12752,9 +12956,9 @@ function Animation( elem, properties, options ) {
 	for ( ; index < length; index++ ) {
 		result = Animation.prefilters[ index ].call( animation, elem, props, animation.opts );
 		if ( result ) {
-			if ( jQuery.isFunction( result.stop ) ) {
+			if ( isFunction( result.stop ) ) {
 				jQuery._queueHooks( animation.elem, animation.opts.queue ).stop =
-					jQuery.proxy( result.stop, result );
+					result.stop.bind( result );
 			}
 			return result;
 		}
@@ -12762,9 +12966,16 @@ function Animation( elem, properties, options ) {
 
 	jQuery.map( props, createTween, animation );
 
-	if ( jQuery.isFunction( animation.opts.start ) ) {
+	if ( isFunction( animation.opts.start ) ) {
 		animation.opts.start.call( elem, animation );
 	}
+
+	// Attach callbacks from options
+	animation
+		.progress( animation.opts.progress )
+		.done( animation.opts.done, animation.opts.complete )
+		.fail( animation.opts.fail )
+		.always( animation.opts.always );
 
 	jQuery.fx.timer(
 		jQuery.extend( tick, {
@@ -12774,11 +12985,7 @@ function Animation( elem, properties, options ) {
 		} )
 	);
 
-	// attach callbacks from options
-	return animation.progress( animation.opts.progress )
-		.done( animation.opts.done, animation.opts.complete )
-		.fail( animation.opts.fail )
-		.always( animation.opts.always );
+	return animation;
 }
 
 jQuery.Animation = jQuery.extend( Animation, {
@@ -12792,7 +12999,7 @@ jQuery.Animation = jQuery.extend( Animation, {
 	},
 
 	tweener: function( props, callback ) {
-		if ( jQuery.isFunction( props ) ) {
+		if ( isFunction( props ) ) {
 			callback = props;
 			props = [ "*" ];
 		} else {
@@ -12824,13 +13031,13 @@ jQuery.Animation = jQuery.extend( Animation, {
 jQuery.speed = function( speed, easing, fn ) {
 	var opt = speed && typeof speed === "object" ? jQuery.extend( {}, speed ) : {
 		complete: fn || !fn && easing ||
-			jQuery.isFunction( speed ) && speed,
+			isFunction( speed ) && speed,
 		duration: speed,
-		easing: fn && easing || easing && !jQuery.isFunction( easing ) && easing
+		easing: fn && easing || easing && !isFunction( easing ) && easing
 	};
 
-	// Go to the end state if fx are off or if document is hidden
-	if ( jQuery.fx.off || document.hidden ) {
+	// Go to the end state if fx are off
+	if ( jQuery.fx.off ) {
 		opt.duration = 0;
 
 	} else {
@@ -12853,7 +13060,7 @@ jQuery.speed = function( speed, easing, fn ) {
 	opt.old = opt.complete;
 
 	opt.complete = function() {
-		if ( jQuery.isFunction( opt.old ) ) {
+		if ( isFunction( opt.old ) ) {
 			opt.old.call( this );
 		}
 
@@ -13017,12 +13224,12 @@ jQuery.fx.tick = function() {
 		i = 0,
 		timers = jQuery.timers;
 
-	fxNow = jQuery.now();
+	fxNow = Date.now();
 
 	for ( ; i < timers.length; i++ ) {
 		timer = timers[ i ];
 
-		// Checks the timer has not already been removed
+		// Run the timer and safely remove it when done (allowing for external removal)
 		if ( !timer() && timers[ i ] === timer ) {
 			timers.splice( i--, 1 );
 		}
@@ -13036,30 +13243,21 @@ jQuery.fx.tick = function() {
 
 jQuery.fx.timer = function( timer ) {
 	jQuery.timers.push( timer );
-	if ( timer() ) {
-		jQuery.fx.start();
-	} else {
-		jQuery.timers.pop();
-	}
+	jQuery.fx.start();
 };
 
 jQuery.fx.interval = 13;
 jQuery.fx.start = function() {
-	if ( !timerId ) {
-		timerId = window.requestAnimationFrame ?
-			window.requestAnimationFrame( raf ) :
-			window.setInterval( jQuery.fx.tick, jQuery.fx.interval );
+	if ( inProgress ) {
+		return;
 	}
+
+	inProgress = true;
+	schedule();
 };
 
 jQuery.fx.stop = function() {
-	if ( window.cancelAnimationFrame ) {
-		window.cancelAnimationFrame( timerId );
-	} else {
-		window.clearInterval( timerId );
-	}
-
-	timerId = null;
+	inProgress = null;
 };
 
 jQuery.fx.speeds = {
@@ -13176,7 +13374,7 @@ jQuery.extend( {
 		type: {
 			set: function( elem, value ) {
 				if ( !support.radioValue && value === "radio" &&
-					jQuery.nodeName( elem, "input" ) ) {
+					nodeName( elem, "input" ) ) {
 					var val = elem.value;
 					elem.setAttribute( "type", value );
 					if ( val ) {
@@ -13379,7 +13577,7 @@ jQuery.each( [
 
 
 	// Strip and collapse whitespace according to HTML spec
-	// https://html.spec.whatwg.org/multipage/infrastructure.html#strip-and-collapse-whitespace
+	// https://infra.spec.whatwg.org/#strip-and-collapse-ascii-whitespace
 	function stripAndCollapse( value ) {
 		var tokens = value.match( rnothtmlwhite ) || [];
 		return tokens.join( " " );
@@ -13390,20 +13588,30 @@ function getClass( elem ) {
 	return elem.getAttribute && elem.getAttribute( "class" ) || "";
 }
 
+function classesToArray( value ) {
+	if ( Array.isArray( value ) ) {
+		return value;
+	}
+	if ( typeof value === "string" ) {
+		return value.match( rnothtmlwhite ) || [];
+	}
+	return [];
+}
+
 jQuery.fn.extend( {
 	addClass: function( value ) {
 		var classes, elem, cur, curValue, clazz, j, finalValue,
 			i = 0;
 
-		if ( jQuery.isFunction( value ) ) {
+		if ( isFunction( value ) ) {
 			return this.each( function( j ) {
 				jQuery( this ).addClass( value.call( this, j, getClass( this ) ) );
 			} );
 		}
 
-		if ( typeof value === "string" && value ) {
-			classes = value.match( rnothtmlwhite ) || [];
+		classes = classesToArray( value );
 
+		if ( classes.length ) {
 			while ( ( elem = this[ i++ ] ) ) {
 				curValue = getClass( elem );
 				cur = elem.nodeType === 1 && ( " " + stripAndCollapse( curValue ) + " " );
@@ -13432,7 +13640,7 @@ jQuery.fn.extend( {
 		var classes, elem, cur, curValue, clazz, j, finalValue,
 			i = 0;
 
-		if ( jQuery.isFunction( value ) ) {
+		if ( isFunction( value ) ) {
 			return this.each( function( j ) {
 				jQuery( this ).removeClass( value.call( this, j, getClass( this ) ) );
 			} );
@@ -13442,9 +13650,9 @@ jQuery.fn.extend( {
 			return this.attr( "class", "" );
 		}
 
-		if ( typeof value === "string" && value ) {
-			classes = value.match( rnothtmlwhite ) || [];
+		classes = classesToArray( value );
 
+		if ( classes.length ) {
 			while ( ( elem = this[ i++ ] ) ) {
 				curValue = getClass( elem );
 
@@ -13474,13 +13682,14 @@ jQuery.fn.extend( {
 	},
 
 	toggleClass: function( value, stateVal ) {
-		var type = typeof value;
+		var type = typeof value,
+			isValidValue = type === "string" || Array.isArray( value );
 
-		if ( typeof stateVal === "boolean" && type === "string" ) {
+		if ( typeof stateVal === "boolean" && isValidValue ) {
 			return stateVal ? this.addClass( value ) : this.removeClass( value );
 		}
 
-		if ( jQuery.isFunction( value ) ) {
+		if ( isFunction( value ) ) {
 			return this.each( function( i ) {
 				jQuery( this ).toggleClass(
 					value.call( this, i, getClass( this ), stateVal ),
@@ -13492,12 +13701,12 @@ jQuery.fn.extend( {
 		return this.each( function() {
 			var className, i, self, classNames;
 
-			if ( type === "string" ) {
+			if ( isValidValue ) {
 
 				// Toggle individual class names
 				i = 0;
 				self = jQuery( this );
-				classNames = value.match( rnothtmlwhite ) || [];
+				classNames = classesToArray( value );
 
 				while ( ( className = classNames[ i++ ] ) ) {
 
@@ -13556,7 +13765,7 @@ var rreturn = /\r/g;
 
 jQuery.fn.extend( {
 	val: function( value ) {
-		var hooks, ret, isFunction,
+		var hooks, ret, valueIsFunction,
 			elem = this[ 0 ];
 
 		if ( !arguments.length ) {
@@ -13585,7 +13794,7 @@ jQuery.fn.extend( {
 			return;
 		}
 
-		isFunction = jQuery.isFunction( value );
+		valueIsFunction = isFunction( value );
 
 		return this.each( function( i ) {
 			var val;
@@ -13594,7 +13803,7 @@ jQuery.fn.extend( {
 				return;
 			}
 
-			if ( isFunction ) {
+			if ( valueIsFunction ) {
 				val = value.call( this, i, jQuery( this ).val() );
 			} else {
 				val = value;
@@ -13607,7 +13816,7 @@ jQuery.fn.extend( {
 			} else if ( typeof val === "number" ) {
 				val += "";
 
-			} else if ( jQuery.isArray( val ) ) {
+			} else if ( Array.isArray( val ) ) {
 				val = jQuery.map( val, function( value ) {
 					return value == null ? "" : value + "";
 				} );
@@ -13666,7 +13875,7 @@ jQuery.extend( {
 							// Don't return options that are disabled or in a disabled optgroup
 							!option.disabled &&
 							( !option.parentNode.disabled ||
-								!jQuery.nodeName( option.parentNode, "optgroup" ) ) ) {
+								!nodeName( option.parentNode, "optgroup" ) ) ) {
 
 						// Get the specific value for the option
 						value = jQuery( option ).val();
@@ -13718,7 +13927,7 @@ jQuery.extend( {
 jQuery.each( [ "radio", "checkbox" ], function() {
 	jQuery.valHooks[ this ] = {
 		set: function( elem, value ) {
-			if ( jQuery.isArray( value ) ) {
+			if ( Array.isArray( value ) ) {
 				return ( elem.checked = jQuery.inArray( jQuery( elem ).val(), value ) > -1 );
 			}
 		}
@@ -13736,18 +13945,24 @@ jQuery.each( [ "radio", "checkbox" ], function() {
 // Return jQuery for attributes-only inclusion
 
 
-var rfocusMorph = /^(?:focusinfocus|focusoutblur)$/;
+support.focusin = "onfocusin" in window;
+
+
+var rfocusMorph = /^(?:focusinfocus|focusoutblur)$/,
+	stopPropagationCallback = function( e ) {
+		e.stopPropagation();
+	};
 
 jQuery.extend( jQuery.event, {
 
 	trigger: function( event, data, elem, onlyHandlers ) {
 
-		var i, cur, tmp, bubbleType, ontype, handle, special,
+		var i, cur, tmp, bubbleType, ontype, handle, special, lastElement,
 			eventPath = [ elem || document ],
 			type = hasOwn.call( event, "type" ) ? event.type : event,
 			namespaces = hasOwn.call( event, "namespace" ) ? event.namespace.split( "." ) : [];
 
-		cur = tmp = elem = elem || document;
+		cur = lastElement = tmp = elem = elem || document;
 
 		// Don't do events on text and comment nodes
 		if ( elem.nodeType === 3 || elem.nodeType === 8 ) {
@@ -13799,7 +14014,7 @@ jQuery.extend( jQuery.event, {
 
 		// Determine event propagation path in advance, per W3C events spec (#9951)
 		// Bubble up to document, then to window; watch for a global ownerDocument var (#9724)
-		if ( !onlyHandlers && !special.noBubble && !jQuery.isWindow( elem ) ) {
+		if ( !onlyHandlers && !special.noBubble && !isWindow( elem ) ) {
 
 			bubbleType = special.delegateType || type;
 			if ( !rfocusMorph.test( bubbleType + type ) ) {
@@ -13819,7 +14034,7 @@ jQuery.extend( jQuery.event, {
 		// Fire handlers on the event path
 		i = 0;
 		while ( ( cur = eventPath[ i++ ] ) && !event.isPropagationStopped() ) {
-
+			lastElement = cur;
 			event.type = i > 1 ?
 				bubbleType :
 				special.bindType || type;
@@ -13851,7 +14066,7 @@ jQuery.extend( jQuery.event, {
 
 				// Call a native DOM method on the target with the same name as the event.
 				// Don't do default actions on window, that's where global variables be (#6170)
-				if ( ontype && jQuery.isFunction( elem[ type ] ) && !jQuery.isWindow( elem ) ) {
+				if ( ontype && isFunction( elem[ type ] ) && !isWindow( elem ) ) {
 
 					// Don't re-trigger an onFOO event when we call its FOO() method
 					tmp = elem[ ontype ];
@@ -13862,7 +14077,17 @@ jQuery.extend( jQuery.event, {
 
 					// Prevent re-triggering of the same event, since we already bubbled it above
 					jQuery.event.triggered = type;
+
+					if ( event.isPropagationStopped() ) {
+						lastElement.addEventListener( type, stopPropagationCallback );
+					}
+
 					elem[ type ]();
+
+					if ( event.isPropagationStopped() ) {
+						lastElement.removeEventListener( type, stopPropagationCallback );
+					}
+
 					jQuery.event.triggered = undefined;
 
 					if ( tmp ) {
@@ -13908,31 +14133,6 @@ jQuery.fn.extend( {
 } );
 
 
-jQuery.each( ( "blur focus focusin focusout resize scroll click dblclick " +
-	"mousedown mouseup mousemove mouseover mouseout mouseenter mouseleave " +
-	"change select submit keydown keypress keyup contextmenu" ).split( " " ),
-	function( i, name ) {
-
-	// Handle event binding
-	jQuery.fn[ name ] = function( data, fn ) {
-		return arguments.length > 0 ?
-			this.on( name, null, data, fn ) :
-			this.trigger( name );
-	};
-} );
-
-jQuery.fn.extend( {
-	hover: function( fnOver, fnOut ) {
-		return this.mouseenter( fnOver ).mouseleave( fnOut || fnOver );
-	}
-} );
-
-
-
-
-support.focusin = "onfocusin" in window;
-
-
 // Support: Firefox <=44
 // Firefox doesn't have focus(in | out) events
 // Related ticket - https://bugzilla.mozilla.org/show_bug.cgi?id=687787
@@ -13976,7 +14176,7 @@ if ( !support.focusin ) {
 }
 var location = window.location;
 
-var nonce = jQuery.now();
+var nonce = Date.now();
 
 var rquery = ( /\?/ );
 
@@ -14013,7 +14213,7 @@ var
 function buildParams( prefix, obj, traditional, add ) {
 	var name;
 
-	if ( jQuery.isArray( obj ) ) {
+	if ( Array.isArray( obj ) ) {
 
 		// Serialize array item.
 		jQuery.each( obj, function( i, v ) {
@@ -14034,7 +14234,7 @@ function buildParams( prefix, obj, traditional, add ) {
 			}
 		} );
 
-	} else if ( !traditional && jQuery.type( obj ) === "object" ) {
+	} else if ( !traditional && toType( obj ) === "object" ) {
 
 		// Serialize object item.
 		for ( name in obj ) {
@@ -14056,7 +14256,7 @@ jQuery.param = function( a, traditional ) {
 		add = function( key, valueOrFunction ) {
 
 			// If value is a function, invoke it and use its return value
-			var value = jQuery.isFunction( valueOrFunction ) ?
+			var value = isFunction( valueOrFunction ) ?
 				valueOrFunction() :
 				valueOrFunction;
 
@@ -14065,7 +14265,7 @@ jQuery.param = function( a, traditional ) {
 		};
 
 	// If an array was passed in, assume that it is an array of form elements.
-	if ( jQuery.isArray( a ) || ( a.jquery && !jQuery.isPlainObject( a ) ) ) {
+	if ( Array.isArray( a ) || ( a.jquery && !jQuery.isPlainObject( a ) ) ) {
 
 		// Serialize the form elements
 		jQuery.each( a, function() {
@@ -14111,7 +14311,7 @@ jQuery.fn.extend( {
 				return null;
 			}
 
-			if ( jQuery.isArray( val ) ) {
+			if ( Array.isArray( val ) ) {
 				return jQuery.map( val, function( val ) {
 					return { name: elem.name, value: val.replace( rCRLF, "\r\n" ) };
 				} );
@@ -14174,7 +14374,7 @@ function addToPrefiltersOrTransports( structure ) {
 			i = 0,
 			dataTypes = dataTypeExpression.toLowerCase().match( rnothtmlwhite ) || [];
 
-		if ( jQuery.isFunction( func ) ) {
+		if ( isFunction( func ) ) {
 
 			// For each dataType in the dataTypeExpression
 			while ( ( dataType = dataTypes[ i++ ] ) ) {
@@ -14646,7 +14846,7 @@ jQuery.extend( {
 		if ( s.crossDomain == null ) {
 			urlAnchor = document.createElement( "a" );
 
-			// Support: IE <=8 - 11, Edge 12 - 13
+			// Support: IE <=8 - 11, Edge 12 - 15
 			// IE throws exception on accessing the href property if url is malformed,
 			// e.g. http://example.com:80x/
 			try {
@@ -14704,8 +14904,8 @@ jQuery.extend( {
 			// Remember the hash so we can put it back
 			uncached = s.url.slice( cacheURL.length );
 
-			// If data is available, append data to url
-			if ( s.data ) {
+			// If data is available and should be processed, append data to url
+			if ( s.data && ( s.processData || typeof s.data === "string" ) ) {
 				cacheURL += ( rquery.test( cacheURL ) ? "&" : "?" ) + s.data;
 
 				// #9682: remove data so that it's not used in an eventual retry
@@ -14942,7 +15142,7 @@ jQuery.each( [ "get", "post" ], function( i, method ) {
 	jQuery[ method ] = function( url, data, callback, type ) {
 
 		// Shift arguments if data argument was omitted
-		if ( jQuery.isFunction( data ) ) {
+		if ( isFunction( data ) ) {
 			type = type || callback;
 			callback = data;
 			data = undefined;
@@ -14980,7 +15180,7 @@ jQuery.fn.extend( {
 		var wrap;
 
 		if ( this[ 0 ] ) {
-			if ( jQuery.isFunction( html ) ) {
+			if ( isFunction( html ) ) {
 				html = html.call( this[ 0 ] );
 			}
 
@@ -15006,7 +15206,7 @@ jQuery.fn.extend( {
 	},
 
 	wrapInner: function( html ) {
-		if ( jQuery.isFunction( html ) ) {
+		if ( isFunction( html ) ) {
 			return this.each( function( i ) {
 				jQuery( this ).wrapInner( html.call( this, i ) );
 			} );
@@ -15026,10 +15226,10 @@ jQuery.fn.extend( {
 	},
 
 	wrap: function( html ) {
-		var isFunction = jQuery.isFunction( html );
+		var htmlIsFunction = isFunction( html );
 
 		return this.each( function( i ) {
-			jQuery( this ).wrapAll( isFunction ? html.call( this, i ) : html );
+			jQuery( this ).wrapAll( htmlIsFunction ? html.call( this, i ) : html );
 		} );
 	},
 
@@ -15121,7 +15321,8 @@ jQuery.ajaxTransport( function( options ) {
 					return function() {
 						if ( callback ) {
 							callback = errorCallback = xhr.onload =
-								xhr.onerror = xhr.onabort = xhr.onreadystatechange = null;
+								xhr.onerror = xhr.onabort = xhr.ontimeout =
+									xhr.onreadystatechange = null;
 
 							if ( type === "abort" ) {
 								xhr.abort();
@@ -15161,7 +15362,7 @@ jQuery.ajaxTransport( function( options ) {
 
 				// Listen to events
 				xhr.onload = callback();
-				errorCallback = xhr.onerror = callback( "error" );
+				errorCallback = xhr.onerror = xhr.ontimeout = callback( "error" );
 
 				// Support: IE 9 only
 				// Use onreadystatechange to replace onabort
@@ -15315,7 +15516,7 @@ jQuery.ajaxPrefilter( "json jsonp", function( s, originalSettings, jqXHR ) {
 	if ( jsonProp || s.dataTypes[ 0 ] === "jsonp" ) {
 
 		// Get callback name, remembering preexisting value associated with it
-		callbackName = s.jsonpCallback = jQuery.isFunction( s.jsonpCallback ) ?
+		callbackName = s.jsonpCallback = isFunction( s.jsonpCallback ) ?
 			s.jsonpCallback() :
 			s.jsonpCallback;
 
@@ -15366,7 +15567,7 @@ jQuery.ajaxPrefilter( "json jsonp", function( s, originalSettings, jqXHR ) {
 			}
 
 			// Call if it was a function and we have a response
-			if ( responseContainer && jQuery.isFunction( overwritten ) ) {
+			if ( responseContainer && isFunction( overwritten ) ) {
 				overwritten( responseContainer[ 0 ] );
 			}
 
@@ -15458,7 +15659,7 @@ jQuery.fn.load = function( url, params, callback ) {
 	}
 
 	// If it's a function
-	if ( jQuery.isFunction( params ) ) {
+	if ( isFunction( params ) ) {
 
 		// We assume that it's the callback
 		callback = params;
@@ -15536,13 +15737,6 @@ jQuery.expr.pseudos.animated = function( elem ) {
 
 
 
-/**
- * Gets a window from an element
- */
-function getWindow( elem ) {
-	return jQuery.isWindow( elem ) ? elem : elem.nodeType === 9 && elem.defaultView;
-}
-
 jQuery.offset = {
 	setOffset: function( elem, options, i ) {
 		var curPosition, curLeft, curCSSTop, curTop, curOffset, curCSSLeft, calculatePosition,
@@ -15573,7 +15767,7 @@ jQuery.offset = {
 			curLeft = parseFloat( curCSSLeft ) || 0;
 		}
 
-		if ( jQuery.isFunction( options ) ) {
+		if ( isFunction( options ) ) {
 
 			// Use jQuery.extend here to allow modification of coordinates argument (gh-1848)
 			options = options.call( elem, i, jQuery.extend( {}, curOffset ) );
@@ -15596,6 +15790,8 @@ jQuery.offset = {
 };
 
 jQuery.fn.extend( {
+
+	// offset() relates an element's border box to the document origin
 	offset: function( options ) {
 
 		// Preserve chaining for setter
@@ -15607,13 +15803,14 @@ jQuery.fn.extend( {
 				} );
 		}
 
-		var docElem, win, rect, doc,
+		var rect, win,
 			elem = this[ 0 ];
 
 		if ( !elem ) {
 			return;
 		}
 
+		// Return zeros for disconnected and hidden (display: none) elements (gh-2310)
 		// Support: IE <=11 only
 		// Running getBoundingClientRect on a
 		// disconnected node in IE throws an error
@@ -15621,56 +15818,52 @@ jQuery.fn.extend( {
 			return { top: 0, left: 0 };
 		}
 
+		// Get document-relative position by adding viewport scroll to viewport-relative gBCR
 		rect = elem.getBoundingClientRect();
-
-		// Make sure element is not hidden (display: none)
-		if ( rect.width || rect.height ) {
-			doc = elem.ownerDocument;
-			win = getWindow( doc );
-			docElem = doc.documentElement;
-
-			return {
-				top: rect.top + win.pageYOffset - docElem.clientTop,
-				left: rect.left + win.pageXOffset - docElem.clientLeft
-			};
-		}
-
-		// Return zeros for disconnected and hidden elements (gh-2310)
-		return rect;
+		win = elem.ownerDocument.defaultView;
+		return {
+			top: rect.top + win.pageYOffset,
+			left: rect.left + win.pageXOffset
+		};
 	},
 
+	// position() relates an element's margin box to its offset parent's padding box
+	// This corresponds to the behavior of CSS absolute positioning
 	position: function() {
 		if ( !this[ 0 ] ) {
 			return;
 		}
 
-		var offsetParent, offset,
+		var offsetParent, offset, doc,
 			elem = this[ 0 ],
 			parentOffset = { top: 0, left: 0 };
 
-		// Fixed elements are offset from window (parentOffset = {top:0, left: 0},
-		// because it is its only offset parent
+		// position:fixed elements are offset from the viewport, which itself always has zero offset
 		if ( jQuery.css( elem, "position" ) === "fixed" ) {
 
-			// Assume getBoundingClientRect is there when computed position is fixed
+			// Assume position:fixed implies availability of getBoundingClientRect
 			offset = elem.getBoundingClientRect();
 
 		} else {
-
-			// Get *real* offsetParent
-			offsetParent = this.offsetParent();
-
-			// Get correct offsets
 			offset = this.offset();
-			if ( !jQuery.nodeName( offsetParent[ 0 ], "html" ) ) {
-				parentOffset = offsetParent.offset();
-			}
 
-			// Add offsetParent borders
-			parentOffset = {
-				top: parentOffset.top + jQuery.css( offsetParent[ 0 ], "borderTopWidth", true ),
-				left: parentOffset.left + jQuery.css( offsetParent[ 0 ], "borderLeftWidth", true )
-			};
+			// Account for the *real* offset parent, which can be the document or its root element
+			// when a statically positioned element is identified
+			doc = elem.ownerDocument;
+			offsetParent = elem.offsetParent || doc.documentElement;
+			while ( offsetParent &&
+				( offsetParent === doc.body || offsetParent === doc.documentElement ) &&
+				jQuery.css( offsetParent, "position" ) === "static" ) {
+
+				offsetParent = offsetParent.parentNode;
+			}
+			if ( offsetParent && offsetParent !== elem && offsetParent.nodeType === 1 ) {
+
+				// Incorporate borders into its offset, since they are outside its content origin
+				parentOffset = jQuery( offsetParent ).offset();
+				parentOffset.top += jQuery.css( offsetParent, "borderTopWidth", true );
+				parentOffset.left += jQuery.css( offsetParent, "borderLeftWidth", true );
+			}
 		}
 
 		// Subtract parent offsets and element margins
@@ -15709,7 +15902,14 @@ jQuery.each( { scrollLeft: "pageXOffset", scrollTop: "pageYOffset" }, function( 
 
 	jQuery.fn[ method ] = function( val ) {
 		return access( this, function( elem, method, val ) {
-			var win = getWindow( elem );
+
+			// Coalesce documents and windows
+			var win;
+			if ( isWindow( elem ) ) {
+				win = elem;
+			} else if ( elem.nodeType === 9 ) {
+				win = elem.defaultView;
+			}
 
 			if ( val === undefined ) {
 				return win ? win[ prop ] : elem[ method ];
@@ -15763,7 +15963,7 @@ jQuery.each( { Height: "height", Width: "width" }, function( name, type ) {
 			return access( this, function( elem, type, value ) {
 				var doc;
 
-				if ( jQuery.isWindow( elem ) ) {
+				if ( isWindow( elem ) ) {
 
 					// $( window ).outerWidth/Height return w/h including scrollbars (gh-1729)
 					return funcName.indexOf( "outer" ) === 0 ?
@@ -15797,6 +15997,28 @@ jQuery.each( { Height: "height", Width: "width" }, function( name, type ) {
 } );
 
 
+jQuery.each( ( "blur focus focusin focusout resize scroll click dblclick " +
+	"mousedown mouseup mousemove mouseover mouseout mouseenter mouseleave " +
+	"change select submit keydown keypress keyup contextmenu" ).split( " " ),
+	function( i, name ) {
+
+	// Handle event binding
+	jQuery.fn[ name ] = function( data, fn ) {
+		return arguments.length > 0 ?
+			this.on( name, null, data, fn ) :
+			this.trigger( name );
+	};
+} );
+
+jQuery.fn.extend( {
+	hover: function( fnOver, fnOut ) {
+		return this.mouseenter( fnOver ).mouseleave( fnOut || fnOver );
+	}
+} );
+
+
+
+
 jQuery.fn.extend( {
 
 	bind: function( types, data, fn ) {
@@ -15818,7 +16040,67 @@ jQuery.fn.extend( {
 	}
 } );
 
+// Bind a function to a context, optionally partially applying any
+// arguments.
+// jQuery.proxy is deprecated to promote standards (specifically Function#bind)
+// However, it is not slated for removal any time soon
+jQuery.proxy = function( fn, context ) {
+	var tmp, args, proxy;
+
+	if ( typeof context === "string" ) {
+		tmp = fn[ context ];
+		context = fn;
+		fn = tmp;
+	}
+
+	// Quick check to determine if target is callable, in the spec
+	// this throws a TypeError, but we will just return undefined.
+	if ( !isFunction( fn ) ) {
+		return undefined;
+	}
+
+	// Simulated bind
+	args = slice.call( arguments, 2 );
+	proxy = function() {
+		return fn.apply( context || this, args.concat( slice.call( arguments ) ) );
+	};
+
+	// Set the guid of unique handler to the same of original handler, so it can be removed
+	proxy.guid = fn.guid = fn.guid || jQuery.guid++;
+
+	return proxy;
+};
+
+jQuery.holdReady = function( hold ) {
+	if ( hold ) {
+		jQuery.readyWait++;
+	} else {
+		jQuery.ready( true );
+	}
+};
+jQuery.isArray = Array.isArray;
 jQuery.parseJSON = JSON.parse;
+jQuery.nodeName = nodeName;
+jQuery.isFunction = isFunction;
+jQuery.isWindow = isWindow;
+jQuery.camelCase = camelCase;
+jQuery.type = toType;
+
+jQuery.now = Date.now;
+
+jQuery.isNumeric = function( obj ) {
+
+	// As of jQuery 3.0, isNumeric is limited to
+	// strings and numbers (primitives or objects)
+	// that can be coerced to finite numbers (gh-2662)
+	var type = jQuery.type( obj );
+	return ( type === "number" || type === "string" ) &&
+
+		// parseFloat NaNs numeric-cast false positives ("")
+		// ...but misinterprets leading-number strings, particularly hex literals ("0x...")
+		// subtraction forces infinities to NaN
+		!isNaN( obj - parseFloat( obj ) );
+};
 
 
 
@@ -15876,13 +16158,12 @@ if ( !noGlobal ) {
 
 
 
-
 return jQuery;
 } );
 
 
 /***/ }),
-/* 11 */
+/* 12 */
 /***/ (function(module, exports) {
 
 /* ng-infinite-scroll - v1.3.0 - 2016-06-30 */
@@ -16077,16 +16358,16 @@ if (typeof module !== "undefined" && typeof exports !== "undefined" && module.ex
 
 
 /***/ }),
-/* 12 */
+/* 13 */
 /***/ (function(module, exports, __webpack_require__) {
 
 // style-loader: Adds some css to the DOM by adding a <style> tag
 
 // load the styles
-var content = __webpack_require__(13);
+var content = __webpack_require__(17);
 if(typeof content === 'string') content = [[module.i, content, '']];
 // add the styles to the DOM
-var update = __webpack_require__(16)(content, {});
+var update = __webpack_require__(22)(content, {});
 if(content.locals) module.exports = content.locals;
 // Hot Module Replacement
 if(false) {
@@ -16103,483 +16384,1261 @@ if(false) {
 }
 
 /***/ }),
-/* 13 */
-/***/ (function(module, exports, __webpack_require__) {
-
-exports = module.exports = __webpack_require__(14)(undefined);
-// imports
-exports.push([module.i, "@import url(https://fonts.googleapis.com/css?family=Open+Sans:300,700);", ""]);
-exports.push([module.i, "@import url(https://fonts.googleapis.com/css?family=Roboto:100,500);", ""]);
-
-// module
-exports.push([module.i, "/*--------------------- FONT (OPEN SANS) IMPORT FROM GOOGLE FONTS ----------------------*/\n\n/*----------------------------------------------------------------------------------------\n\t\t\t\t\t\t\t\t\t\tCOMMON STYLES\n-----------------------------------------------------------------------------------------*/\n\nbody {\n\twidth:100%;  \n\tfont-family: 'Open Sans', sans-serif;\n\tfont-size: 16px;\n\tfont-weight: 300;\n\t/* color: #777; */\n\tline-height: 1.6;\n\tbackground-color:#fafafa;\n}\n\na {\n\t/*color: #444;*/\n\ttext-decoration: none;\n\t-webkit-transition: all 0.25s ease-out;\n\t-moz-transition: all 0.25s ease-out;\n\t-ms-transition: all 0.25s ease-out;\n\t-o-transition: all 0.25s ease-out;\n\ttransition: all 0.25s ease-out;\n}\n\na:hover {\n\tcolor: #00aeff;\n\ttext-decoration: none;\n}\n\nh1 {\n\tfont-size: 50px;\n\tfont-family: 'Roboto', sans-serif;\n}\n\nh2 { font-size: 34px; }\n\nh3 { font-size: 22px; }\n\nh4 { font-size: 17px; }\n\nh1,\nh2,\nh3,\nh4 {\n\tcolor: #444;\n\tfont-weight: lighter;\n\tline-height:1.2;\n\tmargin:5px 0 5px 0;\n}\n\n.uppercase {\n\ttext-transform: uppercase;\n}\n\n.width640 {\n\twidth: 640px !important;\n}\n.width321 {\n\twidth: 321px !important;\n}\n\n\n\n.padding-5 {\n\tpadding: 5px;\n}\n.padding-10 {\n\tpadding: 10px;\n}\n.padding-30 {\n\tpadding: 30px;\n}\n\n\n/* BOOTSTRAP OVERRIDES */\n.navbar-default{\n\tbackground-color:white;\n\tborder-bottom: 1px solid #eeeeee;\n\t-webkit-box-shadow:0px 1px 1px #de1dde;\n -moz-box-shadow:0px 1px 1px #de1dde;\n box-shadow:0px 1px 1px #de1dde;\n}\n\n/*----------------------------------------------------------------------------------------\n\t\t\t\t\t\t\t\t\t\tNEWS\n--------------------*/\n\n.hashbook-container{\n\theight:200px;\n\tpadding:10px;\n}\n.hashbook{\n\theight:170px;\n\tborder: 1px solid black;\n\tborder-radius: 4px;\n}\n.hashbook-panel{\n\t\theight:200px;\n}\n\n.hashbook h2 {\n\tfont-size:22px;\n}\n.hashbook h4 {\n\tmargin:10px 0 10px 0 !important;\n}\n.header_menu {\n\tpadding:5px;\n\tfont-size:17px;\n\tfont-weight: bold !important;\n}\n.header_menu li {\n\t\t\t\tlist-style-type: none;\n        margin: 0;\n        padding: 0;\n        padding-top: 3px;\n        padding-bottom: 10px;\n        margin-bottom: 10px;\n        border-bottom: 1px solid #eeeeee;\n}\n.menu-item-profile {\n\tpadding:10px;\n}\n\n.news-list {\n\tborder-bottom: 1px solid #eee;\n\tmargin-bottom: 60px;\n}\n\n.news-list .news-element {\n\tborder-bottom: 1px solid #eee;\n\tpadding: 60px 0;\n}\n\n.list-feed-actions {\n\tpadding-left : 30px;\n\tpadding-right : 30px;\n}\n.list-feed-actions li {\n\tpadding-left : 20px;\n\tpadding-right : 20px;\n}\n\n.news-list li h3{\n\tfont-size: 25px;\n\tfont-weight: bold;\n\ttext-transform: none;\n\tmargin: 0 0 25px 0;\n}\n\n.news-info{ margin:0 0 30px 0;}\n\n#news .news-info { margin:0;}\n\n.news-info > div {\n\tdisplay: inline-block;\n\tpadding: 0 30px 0 0;\n}\n\n.news-info div:last-child {padding:0;}\n\n.news-info > div .icon {\n\tmargin: 0 10px 0 0;\n\tcolor: #ccc;\n}\n\n@media (max-width: 767px) {\n\n.text-center-sm {\n\t\ttext-align: center;\n}\n\t\n.news-list li { padding: 40px 0; }\n\n.news-list li h3 { font-size: 20px; }\n\n.news-info > div {\n\tfont-size: 14px;\n\tpadding: 0 10px 0 0;\n}\n\n.news-info > div .icon { margin: 0 5px 0 0; }\n\n}\n\n/* OTHER */\n\n\ntextarea {\n\tresize: vertical;\n}\n\ndiv.inline {\n\tfloat: left;\n}\n\n.rate-btn {\nfont-size:24px;\t\n}\n.upvoted{\n\tcolor:rgb(255,70,0)\n}\n/* header */\n\n@media(max-width:767px) {\n\t.navbar .navbar-form {\n\t\twidth: 200px;\n\t\tpadding-left: 10px;\n\t\tpadding-right: 0;\n\t}\n\tbody {\n\t\tpadding-top: 0px;\n\t}\n}\n\n@media(min-width:768px) {\n\t.navbar .navbar-form {\n\t\twidth: 300px;\n\t}\n\tbody {\n\t\tpadding-top: 70px;\n\t}\n}\n\nimg.lazy {\n\twidth: 100%;\n\t/*max-height: 400px;*/\n\tmin-height: 180px;\n\tdisplay: block;\n\t/* optional way, set loading as background */\n\tbackground-image: url('/img/loader-pacman.gif');\n\tbackground-repeat: no-repeat;\n\tbackground-position: 50% 50%;\n}\n\n.navbar .navbar-form {\n\tpadding-top: 0;\n\tpadding-bottom: 0;\n\tmargin-right: 0;\n\tmargin-left: 0;\n\tborder: 0;\n\t-webkit-box-shadow: none;\n\tbox-shadow: none;\n}\n\n.search-results-wrapper {\n\tposition: absolute;\n\ttop: 100%;\n\tleft: 0;\n\tz-index: 1000;\n\tdisplay: none;\n\tbackground-color: #f9f9f9;\n}\n\n.search-results-wrapper > .message {\n\tpadding: 10px 20px;\n\tborder-bottom: 1px solid #ddd;\n\tcolor: #868686;\n}\n\n.search-results-wrapper > .dropdown-menu {\n\tposition: static;\n\tfloat: none;\n\tdisplay: block;\n\tmin-width: 250px;\n\tbackground-color: transparent;\n\tborder: none;\n\tborder-radius: 0;\n\tbox-shadow: none;\n}\n\n\n/* end header */\n\n.header-logo {\n\twidth: 30px;\n}\n\n.image-center {\n\tdisplay: block;\n\tmargin-left: auto;\n\tmargin-right: auto\n}\n.pointer{\n\tcursor: pointer;\n}\n\n.bold {\n\tfont-weight: bold;\n}\n\n.slogan {\n\tfont-size: 16px;\n\tfont-weight: bold;\n}\n.middle-size {\n\tfont-size: 20px;\n\tpadding: 14px;\n}\n.bold-big {\n\tfont-size: 24px;\n\tpadding: 15px;\n\tfont-weight: bold;\n}\n\n.padding-top {\n\tpadding-top: 5px;\n}\n\n.side-padding {\n\tmargin-left: 5px;\n\tmargin-right: 5px;\n}\n\n.feed-container{\n\tmargin-top:5px;\n\tmargin-bottom:20px;\n} \n\n\n.feed {\n\tborder-style: solid;\n  border-width: 1px;\n\tborder-color: #F0F8FF;\n\tbackground-color: white;\n\tmax-width: 640px;\n\tmargin: 0 auto;\n\twidth:100% !important;\n}\n\n.feed .feed-header {\n\t  background-color:white;\n\t\tpadding-top:10px;\n\t\tpadding:5px;\n    border-bottom: 1px solid #F0F8FF;\n\t\tcursor: pointer;\n}\n\n.feed .feed-header img {\n\tborder-radius: 50%;\n\theight: 28px;\n\twidth: 28px;\n}\n\n.feed .feed-header ul li {\n    display: inline; \n}\n\n.feed .feed-header .feed-date {\n    float: right; \n}\n\n\n.feed-body {\n\tcursor: pointer;\n\twidth:100% !important;\n}\n.feed-body lazy-img {\n\tmax-width: 100% !important;\n\tdisplay: block;\n\tmargin-left: auto;\n\tmargin-right: auto;\n\tcursor: pointer;\n}\n.feed-body p {\n\tpadding:5px;\n\tfont-size: 15px;\n\tcursor: pointer;\n}\n\n.feed .feed-footer .hashtag {\n\tpadding: 2px;\n\tfont-weight: bold;\n\tfont-size: 12px;\n\tcursor: pointer;\n}\n\n.feed .feed-footer .feed-actions .list {\n    display: inline; \n    padding-left:5px;\n    padding-top:4px;\n}\n\n.feed .feed-footer .feed-actions .list li {\n    display: inline;\n    padding-left:10px;\n}\n\n\n\n\t.feed-hashtag {\n\t\tfont-size: 8px;\n\t}\n\n.post-feed-body {\n\twidth:100%;  \n\tfont-family: 'Open Sans', sans-serif;\n\n  font-weight: 500 !important;\n  font-style: normal !important;\n  font-size: 21px !important;\n  line-height: 1.58 !important;\n\t/* color: #777; */\n\tline-height: 1.6;\n\tbackground-color:white;\n\tmax-width: 100%;\n\tfont-size: 17px;\n}\n\n.postMainPicture{\n\tmax-width:100%;\n\tdisplay: block;\n  margin-left: auto;\n  margin-right: auto\n}\n\n@media(min-width:768px) {\n.post-title-container h1 {\n\t\tfont-size:38px;\n\t}\n\t\n.post-body {\n\twidth:100%;  \n\tfont-family: 'Open Sans', sans-serif;\n  font-weight: 500 !important;\n  font-style: normal !important;\n  font-size: 17px !important;\n  line-height: 1.58 !important;\n\t/* color: #777; */\n\tline-height: 1.6;\n\tmax-width: 100%;\n\tpadding: 5px;\n}\n\n}\n@media(max-width:768px) {\n\t.hashbook-title h1 {\n\t\tfont-size:24px !important;\n\t}\n\t\n\t.post-title-container h1 {\n\t\tfont-size:24px;\n\t}\n\t.post-body {\n\twidth:100%;  \n\tfont-family: 'Open Sans', sans-serif;\n  font-weight: 500 !important;\n  font-style: normal !important;\n  font-size: 17px !important;\n  line-height: 1.58 !important;\n\tmax-width: 100%;\n}\n}\n\n\n\n.post-body img {\n\tdisplay: block !important;\n  margin-left: auto !important;\n  margin-right: auto !important;\n\tmargin-top: 10px !important;\n\tmargin-down: 10px !important;\n\tmax-width: 100% !important;\n}\n.post-feed-body img {\n\tmargin-top: 10px;\n\tmargin-down: 10px;\n\tmargin-left: auto;\n\tmargin-right: auto;\n\twidth: 100%;\n}\n\n.image-feed-body {\n\tmax-width: 100%;\n\tpadding: 0px;\n}\n\n.feed-title {\n\tpadding-left:5px;\n\tpadding-right:5px;\n}\n\n.block-center {\n\tmargin: 0 auto;\n}\n\n.img-thumbnail-avatar-big {\n\theight: 150px;\n\twidth: 150px;\n}\n\n.img-thumbnail-avatar-normal {\n\theight: 100px;\n\twidth: 100px;\n}\n\n.img-avatar-blog {\n\theight: 30px;\n\twidth: 30px;\n}\n.post-content{\n\twidth:100%;\n}\n.img-thumbnail-avatar-small {\n\theight: 45px;\n\twidth: 45px;\n}\n\n.img-center{\n\t\tdisplay: block;\n    margin-left: auto;\n    margin-right: auto;\n}\n.img-thumbnail-avatar-smallest {\n\theight: 28px;\n\twidth: 28px;\n}\n\n.hashtag {\n\tpadding: 2px;\n\tfont-weight: bold;\n\tfont-size: 12px;\n}\n.padding-3 {\n\tpadding:3px;\n}\n\n/* header \n@media(max-width:767px) {\n.feed-hashtag {\n \n}\n}*/\n\n@media(min-width:768px) {\n\t.feed-hashtag {\n\t\tfont-size: 8px;\n\t}\n}\n\n.hashtag-big {\n\tpadding: 10px;\n\tfont-size: 30px;\n\tfont-weight: bold;\n}\n\n.selected {\n\tfont-weight: bold;\n}\n\n.cursor-pointer {\n\tcursor: pointer;\n}\n\n.horiontal-list li {\n\tdisplay: inline;\n\tlist-style-type: none;\n\twidth: 100%;\n\tpadding: 15px;\n}\n\n.text-center {\n\ttext-align: center\n}\n\n\n/* DROPZONE */\n\n.dz-message-style {\n\tborder-radius: 9px 9px 9px 9px;\n\t-moz-border-radius: 9px 9px 9px 9px;\n\t-webkit-border-radius: 9px 9px 9px 9px;\n\tborder: 2px dashed #000000;\n\theight: 300px;\n\t/*height: 100%;*/\n\twidth: 95%;\n\tdisplay: block;\n\tmargin-left: auto;\n\tmargin-right: auto\n}\n\n.dz-message-text-style {\n\ttext-align: center;\n}\n\n\n/* Slideshow style */\n.splash {\n    position: fixed;\n    background: rgba(0,0,0,0.85);\n    width: 100%;\n    height: 100%;\n    top: 0;\n    left: 0;\n    z-index: 500;\n    opacity: 0;\n    visibility: hidden;\n    overflow: hidden;\n    -webkit-perspective: 1000px;\n    perspective: 1000px;\n    transition: opacity 0.5s, visibility 0s 0.5s;\n    -webkit-transition: opacity 0.5s, visibility 0s 0.5s;\n}\n\n.splash-open.splash {\n    opacity: 1;\n    visibility: visible;\n    -webkit-transition: opacity 0.5s;\n    transition: opacity 0.5s;\n}\n\n.splash .splash-inner {\n    width: 100%;\n    height: 100%;\n    -webkit-transform-style: preserve-3d;\n    transform-style: preserve-3d;\n    -webkit-transform: translate3d(0,0,150px);\n    transform: translate3d(0,0,150px);\n    -webkit-transition: -webkit-transform 0.5s;\n    transition: transform 0.5s;\n}\n\n\n.splash-open.splash .splash-inner {\n    -webkit-transform: translate3d(0,0,0);\n    transform: translate3d(0,0,0);\n}\n\n.splash .splash-content {\n    width: 660px;\n    height: 350px;\n    position: absolute;\n    top: 40%;\n    left: 50%;\n    margin: -175px 0 0 -330px;\n    color: #fff;\n    font-size: 18px;\n}\n\n.splash-content h1 {\n    color: #fff;\n    margin-bottom: 40px;\n}\n\n\n.btn-outline {\n    margin-top: 40px;\n    color: #fff;\n    border: 2px solid #fff;\n    border-radius: 2px;\n    background-color: transparent;\n    width: 250px;\n    font-weight: 300;\n}\n.btn-outline:hover {\n    color: #fff;\n    background-color: rgba(255, 255, 255, 0.05);\n}\n\n\n\n\n/*----------------------------------------------------------------------------------------\n\t\t\t\t\t\t\t\t\t\t\tCOMMENTS\n----------------------------------------------------------------------------------------*/\n\n\n\n.comments { padding: 80px 0 0 0; }\n\n.comments li { padding: 0; }\n\n.comment-list .children { margin-left: 80px; }\n\n.comment-body {\n\tborder-top: 1px solid #eee;\n\tposition: relative;\n\tpadding: 40px 0 40px 80px;\n}\n\n.comment-body .photo {\n\tposition: absolute;\n\tleft: 0;\n\ttop: 40px;\n}\n\n.comment-body .photo img{\n\tborder-radius: 5px;\n\twidth:50px;\n\theight:auto;\n\t}\n\n.comment-body .comment-data {\n\tmargin-top: 10px;\n\tfont-size: 14px;\n}\n\n.comment-body .comment-data .author {\n\tcolor: #444;\n\tfont-weight: bold;\n\tpadding-right: 20px;\n\tfont-size: 14px;\n}\n\n.comment-body .comment-data .date {\n\tcolor: #ccc;\n\tpadding-right: 20px;\n}\n\n.comment-body .comment-data a { color: black; }\n\n\n.comments .comment-respond { margin: 0 0 0 0; }\n\n.comments #comment_form { border: 1px solid #eee; }\n\n.comments #comment_form:after {\n\tcontent: '';\n\tdisplay: block;\n\tclear: both;\n}\n\n.comments #comment_form > div { padding: 0; }\n\n#comment_form .btn_send {\n\twidth: 100%;\n\tbackground: #eee;\n\tfont-weight:bold;\n\tcolor:#777;\n\tmargin:0;\n}\n\n#comment_form .form-group { border-bottom: 1px solid #eee; }\n\n#comment_form .form-group label.error,\n#comment_form .form-group label.valid {\n\tdisplay: block;\n\tmargin: 0;\n\tfont-size: 12px;\n\tposition: relative;\n\tpadding: 5px 20px;\n\tfont-weight: 300;\n\tcolor: #fff;\n\ttext-align: left;\n}\n\n#comment_form .form-group label.error { background: #d12525; }\n\n#comment_form .form-group label.error:before {\n\tposition: absolute;\n\tleft: 20px;\n\ttop: -7px;\n\tcontent: \"\";\n\tdisplay: block;\n\twidth: 0;\n\theight: 0;\n\tborder-style: solid;\n\tborder-width: 0 7px 7px 7px;\n\tborder-color: transparent transparent #d12525 transparent;\n}\n\n#comment_form .form-group label.valid { padding: 0; }\n\n#comment_form .form-group label.valid:before { display: none; }\n\n@media (max-width: 992px) {\n\n.comments{ padding:60px 0 0 0;}\n\n.comments .form-control{ text-align:center;}\n\n.comments .comment-respond{margin:40px 0 0 0;}\n\n.comment-body { padding: 30px 0; }\n\n.comment-list .children { margin-left: 0; }\n\n.comment-body .photo {\n\tposition: relative;\n\tleft: auto;\n\ttop: auto;\n\tmargin: 0 auto 20px auto;\n}\n\n.comment-body .comment-data .author {\n\tdisplay: block;\n\tpadding: 0;\n}\n\n.comment-body .comment-data .date {\n\tdisplay: block;\n\tpadding: 0;\n}\n}\n\n.fill-screen img {\n\twidth:100%;\n}", ""]);
-
-// exports
-
-
-/***/ }),
 /* 14 */
 /***/ (function(module, exports, __webpack_require__) {
 
-/* WEBPACK VAR INJECTION */(function(Buffer) {/*
-	MIT License http://www.opensource.org/licenses/mit-license.php
-	Author Tobias Koppers @sokra
-*/
-// css base code, injected by the css-loader
-module.exports = function(useSourceMap) {
-	var list = [];
+"use strict";
 
-	// return the list of modules as css string
-	list.toString = function toString() {
-		return this.map(function (item) {
-			var content = cssWithMappingToString(item, useSourceMap);
-			if(item[2]) {
-				return "@media " + item[2] + "{" + content + "}";
-			} else {
-				return content;
-			}
-		}).join("");
-	};
 
-	// import a list of modules into the list
-	list.i = function(modules, mediaQuery) {
-		if(typeof modules === "string")
-			modules = [[null, modules, ""]];
-		var alreadyImportedModules = {};
-		for(var i = 0; i < this.length; i++) {
-			var id = this[i][0];
-			if(typeof id === "number")
-				alreadyImportedModules[id] = true;
+__webpack_require__(13);
+
+__webpack_require__(11);
+
+var _angularUiRouter = __webpack_require__(0);
+
+var _angularUiRouter2 = _interopRequireDefault(_angularUiRouter);
+
+var _ngInfiniteScroll = __webpack_require__(12);
+
+var _ngInfiniteScroll2 = _interopRequireDefault(_ngInfiniteScroll);
+
+var _ProfileCtrl = __webpack_require__(9);
+
+var _ProfileCtrl2 = _interopRequireDefault(_ProfileCtrl);
+
+var _FeedsCtrl = __webpack_require__(8);
+
+var _FeedsCtrl2 = _interopRequireDefault(_FeedsCtrl);
+
+var _WelcomeCtrl = __webpack_require__(10);
+
+var _WelcomeCtrl2 = _interopRequireDefault(_WelcomeCtrl);
+
+var _DraftsCtrl = __webpack_require__(6);
+
+var _DraftsCtrl2 = _interopRequireDefault(_DraftsCtrl);
+
+var _EditorCtrl = __webpack_require__(7);
+
+var _EditorCtrl2 = _interopRequireDefault(_EditorCtrl);
+
+var _routing = __webpack_require__(4);
+
+var _routing2 = _interopRequireDefault(_routing);
+
+var _http = __webpack_require__(3);
+
+var _http2 = _interopRequireDefault(_http);
+
+var _state = __webpack_require__(5);
+
+var _state2 = _interopRequireDefault(_state);
+
+var _component = __webpack_require__(2);
+
+var _component2 = _interopRequireDefault(_component);
+
+var _AuthModule = __webpack_require__(1);
+
+var _AuthModule2 = _interopRequireDefault(_AuthModule);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+(0, _AuthModule2.default)();
+
+// import angular from 'angular';
+
+
+var imageDropzone, profilePicDropzone, hashbookBGDropzone;
+var vicigoApp = angular.module("hashtag-app", [_angularUiRouter2.default, 'ui.bootstrap', _ngInfiniteScroll2.default, "dcbImgFallback", "xeditable", "angular-inview", '720kb.socialshare', 'ngDialog', "angular.lazyimg", "ViciAuth"]).constant("API_URL", "").run(function (ngDialog) {
+	(function (d, s, id) {
+		var js,
+		    fjs = d.getElementsByTagName(s)[0];
+		if (d.getElementById(id)) {
+			return;
 		}
-		for(i = 0; i < modules.length; i++) {
-			var item = modules[i];
-			// skip already imported module
-			// this implementation is not 100% perfect for weird media query combinations
-			//  when a module is imported multiple times with different media queries.
-			//  I hope this will never occur (Hey this way we have smaller bundles)
-			if(typeof item[0] !== "number" || !alreadyImportedModules[item[0]]) {
-				if(mediaQuery && !item[2]) {
-					item[2] = mediaQuery;
-				} else if(mediaQuery) {
-					item[2] = "(" + item[2] + ") and (" + mediaQuery + ")";
-				}
-				list.push(item);
-			}
-		}
-	};
-	return list;
-};
+		js = d.createElement(s);
+		js.id = id;
+		js.src = "//connect.facebook.net/en_US/sdk.js";
+		fjs.parentNode.insertBefore(js, fjs);
+	})(document, 'script', 'facebook-jssdk');
 
-function cssWithMappingToString(item, useSourceMap) {
-	var content = item[1] || '';
-	var cssMapping = item[3];
-	if (!cssMapping) {
-		return content;
-	}
-
-	if (useSourceMap) {
-		var sourceMapping = toComment(cssMapping);
-		var sourceURLs = cssMapping.sources.map(function (source) {
-			return '/*# sourceURL=' + cssMapping.sourceRoot + source + ' */'
+	(function (i, s, o, g, r, a, m) {
+		i['GoogleAnalyticsObject'] = r;
+		i[r] = i[r] || function () {
+			(i[r].q = i[r].q || []).push(arguments);
+		}, i[r].l = 1 * new Date();
+		a = s.createElement(o), m = s.getElementsByTagName(o)[0];
+		a.async = 1;
+		a.src = g;
+		m.parentNode.insertBefore(a, m);
+	})(window, document, 'script', '//www.google-analytics.com/analytics.js', 'ga');
+	ga('create', 'UA-61717055-1', 'auto');
+}).run(function ($rootScope, $window, $location) {
+	$window.fbAsyncInit = function () {
+		FB.init({
+			appId: '1577245229193798',
+			status: true,
+			cookie: true,
+			xfbml: true,
+			version: 'v2.4'
 		});
+	};
+}).run(function ($rootScope, $window, $location) {
+	$rootScope.$on('$stateChangeSuccess', function (event) {
+		$window.ga('send', 'pageview', {
+			page: $location.url()
+		});
+	});
+}).run(function (ViciAuth, Uploader) {
 
-		return [content].concat(sourceURLs).concat([sourceMapping]).join('\n');
+	Uploader.init();
+
+	profilePicDropzone = new Dropzone("#profilePicDropzone", {
+		url: "/upload/image?isProfileAvatar=true",
+		maxFiles: 10,
+		maxfilesexceeded: function maxfilesexceeded(file) {
+			this.removeAllFiles();
+			this.addFile(file);
+		},
+		thumbnailWidth: null,
+		previewTemplate: document.querySelector('#preview-template').innerHTML
+	}).on("sending", function (file, xhr) {
+		xhr.setRequestHeader("X-Auth-Token", ViciAuth.getAuthToken());
+	}).on("success", function (file, response) {
+		$('#uploadProfilePicModal').modal('hide');
+		document.getElementById("profilePic").src = response.link;
+	});
+
+	$(".tags-area").tagit({
+		placeholderText: "tag it!"
+	});
+}).run(function ($rootScope, $state, $timeout, $http) {
+	var fetchNotifs = function fetchNotifs() {
+		$http.get("/api/notifications/status").then(function (response) {
+			$rootScope.userStatus = response.data;
+			return;
+		});
+	};
+
+	$rootScope.$on("notAuthenticated", function () {
+		var WhiteListed = ["starter.welcome", "vicigo.post", "vicigo.postByAlias", "vicigo.hashbook", "vicigo.hashtag"];
+		if (WhiteListed.indexOf($state.current.name) == -1) {
+			$state.go("starter.welcome");
+		}
+	});
+}).run(function (editableOptions) {
+	editableOptions.theme = 'bs3';
+}).config(_routing2.default).config(_http2.default).config(_state2.default).service('MetaService', function () {
+	var metaDefault = {
+		title: "#vicigo",
+		author: 'Vicigo',
+		description: 'explore the world of hashtags - #vicigo makes it easy to browse the most interesting information, get your questions answered and share your own knowledge.',
+		robots: 'index, follow',
+		keywords: 'vicigo,viciqloud,hashtag,information,question,answer,social media,share,blog,post,technology',
+		ogTitle: "#vicigo",
+		ogSite_name: "Vicigo",
+		ogUrl: "https://vicigo.com/",
+		ogDescription: "explore the world of hashtags - #vicigo makes it easy to browse the most interesting information, get your questions answered and share your own knowledge.",
+		fbAppId: 1577245229193798,
+		ogType: "website",
+		ogLocale: "locale",
+		articlePublisher: "https://www.facebook.com/vvicigo",
+		ogImage: "https://www.vicigo.com/img/fb_post.png",
+		twitterTitle: "#vicigo",
+		twitterUrl: "https://www.vicigo.com/",
+		twitterDescription: "explore the world of hashtags"
+	};
+	var meta = metaDefault;
+
+	var set = function set(key, value) {
+		meta[key] = value;
+	};
+
+	return {
+		setDefault: function setDefault() {
+			meta = metaDefault;
+			return true;
+		},
+
+		setForPost: function setForPost(post) {
+			set("author", post.author_name);
+			var desc = post.hashtags.map(function (item) {
+				return item.hashtag;
+			}).join(", ");
+			if (post.post_type_id == 4 || post.post_type_id == 5) {
+				set("title", "Image on Vicigo by @" + post.author_name + " | Vicigo");
+				set("ogTitle", "Image on Vicigo by @" + post.author_name);
+				set("twitterTitle", "Image on Vicigo by @" + post.author_name);
+				set("ogUrl", "https://vicigo.com/post/" + post.post_id);
+
+				set("description", desc);
+				set("keywords", desc);
+				set("ogDescription", desc);
+				set("twitterDescription", desc);
+			} else {
+				set("title", post.post_title + " by @" + post.author_name + " |  Vicigo");
+				set("ogTitle", post.post_title + " by @" + post.author_name);
+				set("twitterTitle", post.post_title + " by @" + post.author_name);
+
+				set("description", desc);
+				set("keywords", desc);
+				set("ogDescription", desc);
+				set("twitterDescription", desc);
+			}
+
+			set("ogImage", post.post_image_url ? post.post_image_url : metaDefault.ogImage);
+			return true;
+		},
+
+		setForHashtag: function setForHashtag(hashtag) {
+			meta = metaDefault;
+			var title = "#" + hashtag + " | Vicigo photos and articles";
+			var desc = "Photos, posts and articles with the hashtag '" + hashtag + "' on Vicigo.";
+			set("ogUrl", "https://vicigo.com/hashtag/" + hashtag);
+			set("title", title);
+			set("ogTitle", title);
+			set("twitterTitle", title);
+
+			set("description", desc);
+			set("keywords", desc);
+			set("ogDescription", desc);
+			set("twitterDescription", desc);
+			return true;
+		},
+
+		setForProfile: function setForProfile(profile) {
+			meta = metaDefault;
+			var keywords = profile.hashtags.map(function (item) {
+				return item.hashtag;
+			}).join(", ");
+			var title = "@" + profile.name;
+			title += profile.title ? ", " + profile.title : "";
+			title += "  | Vicigo";
+
+			var desc = "The newest photos and articles from @" + profile.name + ".";
+			desc += profile.title ? " " + profile.title : "";
+			desc += " " + keywords;
+
+			set("title", title);
+			set("ogTitle", title);
+			set("twitterTitle", title);
+			set("ogUrl", "https://vicigo.com/profile/" + profile.user_id);
+			set("description", desc);
+			set("keywords", keywords);
+			set("ogDescription", desc);
+			set("twitterDescription", desc);
+			return true;
+		},
+
+		display: function display(key) {
+			return meta[key];
+		}
+	};
+}).service("Uploader", function ($http, ViciAuth) {
+	var PATHS = {
+		IMAGE: "/upload/image"
+	};
+
+	var changeProgress = function changeProgress(progressValue) {
+		document.getElementById("imageUploadProgressBar").setAttribute("aria-valuenow", progressValue);
+		document.getElementById("imageUploadProgressBar").style.width = progressValue + "%";
+	};
+
+	var init = function init() {
+		imageDropzone = new Dropzone("body", {
+			url: PATHS.IMAGE,
+			maxFiles: 10,
+			thumbnailWidth: null,
+			previewTemplate: document.querySelector('#preview-template').innerHTML,
+			clickable: '#imageDropzone'
+		}).on("addedfile", function (file) {
+			$('#uploadImageModal').modal('show');
+			$('#uploadedImage').attr('src', null);
+			$(".tags-area").tagit("removeAll");
+			//imageDropzone.removeAllFiles(true);
+			$(".dz-message").removeClass("hidden");
+			$("#uploadedImage").addClass("hidden");
+		}).on("sending", function (file, xhr) {
+			changeProgress(0);
+			$("#imageUploadProgress").removeClass("hidden");
+			xhr.setRequestHeader("X-Auth-Token", ViciAuth.getAuthToken());
+		}).on("uploadprogress", function (file, progress) {
+			changeProgress(progress);
+		}).on("success", function (file, response) {
+			changeProgress(100);
+			setTimeout(function () {
+				$("#imageUploadProgress").addClass("hidden");
+			}, 500);
+
+			document.getElementById("uploadedImage").src = response.link;
+			$("#uploadedImagePostId").val(response.postId);
+			document.getElementById("publishPicturePostBtn").disabled = false;
+			$(".dz-message").addClass("hidden");
+			$("#uploadedImage").removeClass("hidden");
+		});
+	};
+
+	return {
+		init: init
+	};
+}).service("CommentService", function ($http) {
+	var deleteComment = function deleteComment(postId, commentId) {
+		$http.delete("/api/post/" + postId + "/comments/" + commentId).then(function (response) {});
+	};
+
+	var getComments = function getComments(postId, callback) {
+		$http.get("/api/post/" + postId + "/comments").then(function (response) {
+			callback(response.data);
+		});
+	};
+
+	var postComment = function postComment(postId, commentBody, callback) {
+		if (!postId || !commentBody) {
+			return;
+		}
+		var comment = {
+			postId: postId,
+			body: commentBody
+		};
+		$http.post("/api/post/" + postId + "/comments/", comment).then(function (response) {
+			callback(response.data);
+		});
+	};
+
+	return {
+		postComment: postComment,
+		getComments: getComments,
+		deleteComment: deleteComment
+	};
+}).service("HashbookService", function ($http, API_URL) {
+	var getHashbooks = function getHashbooks(profileId, params, callback) {
+		$http({
+			url: API_URL + "/api/profile/" + profileId + "/hashbooks",
+			method: "GET",
+			params: params
+		}).then(function (response) {
+			callback(response.data);
+		});
+	};
+	return {
+		getHashbooks: getHashbooks
+	};
+}).service("RelsService", function ($http, API_URL) {
+
+	var followProfile = function followProfile(profileId) {
+		$http.post(API_URL + "/api/profile/" + profileId + "/follow/").then(function (response) {});
+	};
+	var unfollowProfile = function unfollowProfile(profileId) {
+		$http.post(API_URL + "/api/profile/" + profileId + "/unfollow/").then(function (response) {});
+	};
+
+	var showFollowers = function showFollowers(profileId, callback) {
+		$http.get(API_URL + "/api/profile/" + profileId + "/followers").then(function (response) {
+
+			callback(response.data);
+		});
+	};
+
+	var showFollowing = function showFollowing(profileId, callback) {
+		$http.get(API_URL + "/api/profile/" + profileId + "/following").then(function (response) {
+
+			callback(response.data);
+		});
+	};
+
+	var followHashtag = function followHashtag(hashtag) {
+		$http.get(API_URL + "/api/hashtag/" + hashtag + "/follow").then(function (response) {});
+	};
+
+	var unfollowHashtag = function unfollowHashtag(hashtag) {
+		$http.get(API_URL + "/api/hashtag/" + hashtag + "/unfollow").then(function (response) {});
+	};
+
+	var showFollowedHashtags = function showFollowedHashtags(profileId, callback) {
+		$http.get(API_URL + "/api/profile/" + profileId + "/hashtags/following").then(function (response) {
+
+			callback(response.data);
+		});
+	};
+
+	return {
+		followHashtag: followHashtag,
+		unfollowHashtag: unfollowHashtag,
+		followProfile: followProfile,
+		unfollowProfile: unfollowProfile,
+		showFollowing: showFollowing,
+		showFollowers: showFollowers,
+		showFollowedHashtags: showFollowedHashtags
+	};
+}).service("PostService", function ($http, $sce, API_URL) {
+
+	var removePost = function removePost(postId) {
+		return $http.delete(API_URL + "/api/post/" + postId);
+	};
+
+	var getById = function getById(postId, callback) {
+		return $http.get(API_URL + "/api/post/" + postId).then(function (response) {
+			callback(response.data);
+		});
+	};
+
+	var getByAlias = function getByAlias(username, alias, callback) {
+		return $http.get(API_URL + "/api/post/" + username + "/" + alias).then(function (response) {
+			callback(response.data);
+		});
+	};
+	var displayHTML = function displayHTML(html) {
+		return $sce.trustAsHtml(html);
+	};
+
+	var publishPic = function publishPic(postId, params, callback) {
+		$http.put(API_URL + "/api/post/image/publish", {
+			postId: postId,
+			tags: params.hashtags
+		}).then(function (response) {
+			callback(response.data);
+		});
+	};
+
+	var upvote = function upvote(postId) {
+		$http.post(API_URL + "/api/post/" + postId + "/upvote").then(function (response) {});
+	};
+	var downvote = function downvote(postId) {
+		$http.post(API_URL + "/api/post/" + postId + "/downvote").then(function (response) {});
+	};
+
+	var getUpvotes = function getUpvotes(postId, callback) {
+		$http.get(API_URL + "/api/post/" + postId + "/upvotes").then(function (response) {
+			callback(response.data);
+		});
+	};
+
+	var getViews = function getViews(postId, callback) {
+		$http.get(API_URL + "/api/post/" + postId + "/views").then(function (response) {
+			callback(response.data);
+		});
+	};
+
+	return {
+		getViews: getViews,
+		getUpvotes: getUpvotes,
+		publishPic: publishPic,
+		getById: getById,
+		getByAlias: getByAlias,
+		removePost: removePost,
+		upvote: upvote,
+		downvote: downvote,
+		displayHTML: displayHTML
+	};
+}).service("FeedService", function ($http, API_URL) {
+
+	var fetchFeeds = function fetchFeeds(query, callback) {
+		$http({
+			url: API_URL + "/api/feeds",
+			method: "GET",
+			params: {
+				hashtag: query.hashtag,
+				sort: query.sort,
+				filter: query.filter,
+				page: query.page ? query.page : 1,
+				profileId: query.profileId,
+				algorithm: query.algorithm
+			}
+		}).then(function (response) {
+
+			callback(response.data);
+		});
+	};
+
+	return {
+		fetchFeeds: fetchFeeds
+	};
+}).factory('AuthInterceptor', function ($rootScope, $q) {
+
+	if ($rootScope.activeCalls == undefined) {
+		$rootScope.activeCalls = 0;
 	}
 
-	return [content].join('\n');
-}
+	return {
+		request: function request(config) {
+			$rootScope.activeCalls += 1;
+			return config;
+		},
+		requestError: function requestError(rejection) {
+			$rootScope.activeCalls -= 1;
+			return $q.reject(rejection);
+		},
+		response: function response(_response) {
+			$rootScope.activeCalls -= 1;
+			return _response;
+		},
+		responseError: function responseError(response) {
+			$rootScope.activeCalls -= 1;
+			if (response.status == 400 && response.data) {
+				if (response.data.code == "POST_TOO_SHORT") {
+					toastr.info("Post is too short. The minimal amount of charackters is 300. Current: " + response.data.textLength);
+				}
+			}
 
-// Adapted from convert-source-map (MIT)
-function toComment(sourceMap) {
-  var base64 = new Buffer(JSON.stringify(sourceMap)).toString('base64');
-  var data = 'sourceMappingURL=data:application/json;charset=utf-8;base64,' + base64;
+			if (response.status == 401) {
+				$rootScope.$broadcast("notAuthenticated");
+			}
 
-  return '/*# ' + data + ' */';
-}
+			return $q.reject(response);
+		}
+	};
+}).controller("appController", function ($scope, ViciAuth, PostService) {
+	$scope.AUTH_TOKEN = ViciAuth.getAuthToken();
+}).controller("chatController", function ($rootScope, $stateParams, $scope, $state, $http, $sce) {
+	$scope.message = "";
+	$scope.messages = [];
+	var socket = io();
+	alert($rootScope.user.id);
+	socket.emit('chatJoined', {
+		senderId: $rootScope.user.id,
+		receiverId: $stateParams.userId
+	});
 
-/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(19).Buffer))
+	socket.on('chatMessage', function (msg) {
+		$scope.messages.push(msg);
+	});
+
+	$scope.submitMessage = function (message) {
+		socket.emit('chatMessage', message);
+		$scope.messages.push(message);
+		$scope.message = "";
+
+		return false;
+	};
+}).controller("blogController", function ($rootScope, $stateParams, $scope, $state, $http, CommentService, PostService) {
+
+	$scope.blogSlug = $stateParams.blogSlug;
+	$scope.blog = {};
+
+	$scope.followHashbook = function (hashbook) {
+		if (!$rootScope.user.id) {
+
+			bootbox.prompt("<b>What is your email?</b>", function (result) {
+				$http.post("/api/hashbook/" + hashbook.blog_id + "/follow?medium=email&source=hashbook_page", {
+					email: result
+				});
+			});
+		} else {
+			$http.post("/api/hashbook/" + $scope.blog.blog_id + "/follow?medium=vicigo&source=hashbook_page").then(function (response) {
+				$scope.blog.blogFollowed = true;
+			});
+		}
+	};
+
+	$http.get("/api/hashbook/" + $scope.blogSlug).then(function (response) {
+
+		$scope.blog = response.data;
+	});
+
+	hashbookBGDropzone = new Dropzone("#hashbookBGDropzone", {
+		url: "/upload/image?isBackground=true&hashbookId=" + $scope.blog.blog_id,
+		maxFiles: 1,
+		thumbnailWidth: null,
+		previewTemplate: document.querySelector('#preview-template').innerHTML,
+		clickable: '#hashbookBGDropzone'
+	});
+	hashbookBGDropzone.on("success", function (file, response) {
+		$scope.blog.bg_picture = response.link;
+	});
+
+	/* repeting */
+	$scope.upvotePost = function (postId, index) {
+		if (!$rootScope.user.id) {
+			return $("#loginModal").modal();
+		}
+		$scope.blog.posts[index].upvotes_count = $scope.blog.posts[index].upvotes_count + 1;
+		$scope.blog.posts[index].alreadyUpvoted = true;
+		PostService.upvote(postId);
+	};
+
+	$scope.showComments = function (postId, index) {
+		if ($scope.feeds[index].showComments) {
+			$scope.feeds[index].showComments = false;
+		} else {
+			CommentService.getComments(postId, function (rComments) {
+				$scope.feeds[index].showComments = true;
+				$scope.feeds[index].comments = rComments;
+			});
+		}
+	};
+
+	$scope.postComment = function (postId, body, index) {
+
+		$scope.feeds[index].commentDraft = "";
+		CommentService.postComment(postId, body, function (rComment) {
+			$scope.feeds[index].showComments = true;
+			$scope.feeds[index].comments.unshift(rComment);
+		});
+	};
+
+	$scope.deleteComment = function (postId, commentId, feedIndex, commentIndex) {
+		$scope.feeds[feedIndex].comments.splice(commentIndex, 1);
+		CommentService.deleteComment(postId, commentId);
+	};
+
+	$scope.displayPostBody = PostService.displayHTML;
+}).controller("blogEditController", function ($rootScope, $stateParams, $scope, $state, $http, $sce) {
+	$(".tags-area").tagit();
+
+	$scope.blogSlug = $stateParams.blogSlug;
+	$scope.blog = {};
+
+	$http.get("/api/hashbook/" + $scope.blogSlug + "?fields=hashtags").then(function (response) {
+		$scope.blog = response.data;
+		var hashtags = $scope.blog._hashtags;
+		for (var index = 0; index < hashtags.length; index++) {
+			$(".tags-area").tagit("createTag", hashtags[index].hashtag);
+		}
+	});
+
+	$scope.updateBlog = function (data) {
+
+		data = {
+			title: data.blog_title,
+			desc: data.blog_desc,
+			hashtags: data.hashtags
+		};
+
+		$http.put("/api/hashbook/" + $scope.blogSlug, data).then(function (response) {
+
+			$state.go("hashbook.list", {
+				blogSlug: $scope.blogSlug
+			});
+		}, function (response) {});
+	};
+}).controller("blogNewController", function ($rootScope, $scope, $state, $http) {
+	$(".tags-area").tagit({
+		placeholderText: "place for hashtags!"
+	});
+
+	$scope.blog = {
+		slug: null,
+		title: null,
+		desc: null,
+		hashtags: null,
+		type: "blog"
+	};
+	$scope.createBlog = function (blog) {
+		if (!blog.title) {
+			return false;
+		}
+		if (!blog.hashtags) {
+			return false;
+		}
+
+		$http.post("/api/hashbook", blog).then(function (response) {
+
+			$scope.data = response.data;
+			$state.go("hashbook.list", {
+				blogSlug: $scope.blog.slug
+			});
+		});
+	};
+}).controller("importController", function ($rootScope, $scope, $state, $http) {
+	$(".tags-area").tagit({
+		placeholderText: "place for hashtags!"
+	});
+	$scope.data = [];
+	$scope.activePost = false;
+	$http.get("/api/external_services/fb/fetch_photos").then(function (response) {
+
+		$scope.data = response.data;
+	});
+
+	$scope.selectedImageUrl = "";
+	$scope.tagExternalPost = function (item) {
+		$('#uploadExternalImageModal').modal('show');
+		$scope.selectedImageUrl = item.source;
+		$scope.activePost = item;
+	};
+
+	$scope.publishExternalPost = function () {
+
+		var index = $scope.data.indexOf($scope.activePost);
+		$scope.data.splice(index, 1);
+
+		$('#uploadExternalImageModal').modal('hide');
+		var hashtags = $("#hashtagsForImportedPhoto").val();
+
+		var post = angular.copy($scope.activePost);
+
+		post.tags = hashtags;
+		$http.post("/api/post/image/from_link", post).then(function (response) {
+
+			$(".tags-area2").tagit("removeAll");
+		});
+	};
+}).controller("userListCtrl", function ($rootScope, $scope, $uibModalInstance, postId, statType, stats, PostService) {
+
+	$scope.stats = stats;
+
+	$scope.cancel = function () {
+		$uibModalInstance.dismiss('cancel');
+	};
+
+	$scope.showItems = function (type) {
+		$scope.statType = type;
+		if (type == "upvotes") {
+			PostService.getUpvotes(postId, function (rPostUpvotes) {
+				$scope.items = rPostUpvotes;
+			});
+		}
+		if (type == "views") {
+			PostService.getViews(postId, function (rPostViews) {
+				$scope.items = rPostViews;
+			});
+		}
+	};
+
+	if (stats.upvotesCount) {
+		$scope.showItems("upvotes");
+	} else {
+		$scope.showItems("views");
+	}
+
+	$rootScope.$on('$stateChangeStart', function () {
+		$scope.cancel();
+	});
+}).controller("mainController", function ($rootScope, $scope, $state, $sce, $window, $location, $http, ViciAuth, MetaService, PostService, $uibModal) {
+	$http.get("/api/hashtags/trending").then(function (response) {
+		$scope.hashtags = response.data.map(function (item) {
+			return item.hashtag;
+		});
+	});
+
+	$scope.showUpvotes = function (feed, statType) {
+		PostService.getUpvotes(feed.id, function (rPostUpvotes) {
+			var modalInstance = $uibModal.open({
+				animation: $scope.animationsEnabled,
+				templateUrl: 'userListModal.html',
+				controller: 'userListCtrl',
+				resolve: {
+					statType: statType,
+					postId: feed.id,
+					stats: function stats() {
+						return {
+							upvotesCount: feed.upvotes_count,
+							viewsCount: feed.views_count,
+							commentsCount: feed.comment_count
+						};
+					},
+					postUpvotes: function postUpvotes() {
+						return rPostUpvotes;
+					}
+				}
+			});
+		});
+	};
+
+	$rootScope.MetaService = MetaService;
+
+	$rootScope.trustSrc = function (src) {
+		return $sce.trustAsResourceUrl(src);
+	};
+
+	$scope.goToPost = function (feed) {
+		$state.go("vicigo.post", {
+			postId: feed.id
+		});
+	};
+
+	$rootScope.fbLogin = function (redirectOnSuccess) {
+		ViciAuth.fbAuth(function (rUser) {
+			$("#loginModal").modal('hide');
+			$rootScope.user = {
+				id: rUser.userId
+			};
+			$state.go("vicigo.feeds");
+		});
+	};
+
+	$rootScope.searchVicigo = function (searchInput) {
+		searchInput = searchInput.toLowerCase();
+		searchInput = searchInput.replace('#', '');
+		searchInput = searchInput.replace('@', '');
+
+		return $http.get('/api/search?q=' + searchInput).then(function (response) {
+			return response.data.map(function (item) {
+				return item;
+			});
+		});
+	};
+
+	$rootScope.searchResultSelected = function ($item) {
+		switch ($item.type) {
+			case "profile":
+				$state.go("vicigo.profile", {
+					profileId: $item.objId
+				});
+				break;
+			case "post":
+				$state.go("vicigo.post", {
+					postId: $item.objId
+				});
+				break;
+			case "hashtag":
+				$state.go("vicigo.hashtag", {
+					hashtag: $item.objId
+				});
+				break;
+			default:
+		}
+	};
+
+	$scope.sort = function (sortType) {
+		if (sortType == $scope.sortType) {
+			$window.location.reload();
+		} else {
+			$scope.sortType = sortType;
+			$scope.postsAvailable = true;
+			$location.search('sort', $scope.sortType);
+		}
+	};
+
+	$scope.newPhoto = function () {
+		$('#uploadImageModal').modal('show');
+		$('#uploadedImage').attr('src', null);
+		$(".tags-area").tagit("removeAll");
+		//imageDropzone.removeAllFiles(true);
+		$(".dz-message").removeClass("hidden");
+		$("#uploadedImage").addClass("hidden");
+	};
+
+	$scope.editPhoto = function (feed) {
+		$('#uploadImageModal').modal('show'); //uploadExternalImageModal
+		$('#uploadedImage').attr('src', feed.image_url);
+
+		$(".dz-message").addClass("hidden");
+		$("#uploadedImage").removeClass("hidden");
+		document.getElementById("publishPicturePostBtn").disabled = false;
+
+		$(".tags-area").tagit("removeAll");
+		feed.hashtags = feed.hashtags ? feed.hashtags : [];
+		for (var index = 0; index < feed.hashtags.length; index++) {
+			$(".tags-area").tagit("createTag", feed.hashtags[index].hashtag);
+		}
+		$("#uploadedImagePostId").val(feed.id);
+
+		imageDropzone.removeAllFiles(true);
+	};
+
+	$scope.displayFeedBody = PostService.displayHTML;
+
+	$scope.getFeedLink = function (feed) {
+		return "/post/" + feed.id;
+	};
+
+	$scope.hasTitle = function (post_type_id) {
+		if (post_type_id == 4) {
+			return false;
+		} else {
+			return true;
+		}
+	};
+
+	$rootScope.publishPicturePost = function () {
+		var postId = $("#uploadedImagePostId").val();
+		var tags = $("#uploadedPictureTags").val();
+		$('#uploadImageModal').modal('toggle');
+
+		if (postId) {
+			PostService.publishPic(postId, {
+				hashtags: tags
+			}, function () {
+				$(".dz-message").removeClass("hidden");
+				$('#uploadedImage').attr('src', "");
+				$("#uploadedPictureTags").tagit("removeAll");
+				document.getElementById("publishPicturePostBtn").disabled = true;
+				$(".dz-message").removeClass("hidden");
+				$("#uploadedImage").addClass("hidden");
+			});
+		}
+	};
+
+	$rootScope.logoutMe = function () {
+		ViciAuth.logout();
+
+		$http.post("/viciauth/logout").then(function (response) {
+			$rootScope.user = false;
+			$rootScope.fetchingNotifs = false;
+
+			$state.go("starter.welcome");
+		});
+	};
+}).controller("postController", function ($rootScope, $stateParams, $http, $scope, $sce, post, RelsService, CommentService) {
+	$scope.postId = post.post_id;
+	$scope.post = post;
+
+	$scope.comments = [];
+
+	$scope.follow = function (profileId) {
+		if (!$rootScope.user.id) {
+			return $("#loginModal").modal();
+		}
+		$scope.post.authorFollowed = true;
+		RelsService.followProfile(profileId);
+	};
+
+	CommentService.getComments($scope.postId, function (rComments) {
+		$scope.comments = rComments;
+	});
+
+	$scope.postComment = function (postId, body) {
+		$scope.commentDraft = "";
+		CommentService.postComment(postId, body, function (rComment) {
+			$scope.comments.unshift(rComment);
+		});
+	};
+
+	$scope.deleteComment = function (postId, commentId, commentIndex) {
+		$scope.comments.splice(commentIndex, 1);
+		CommentService.deleteComment(postId, commentId);
+	};
+
+	$scope.openShareModal = function (postId, commentId, commentIndex) {
+		bootbox.confirm("Are you sure?", function (result) {
+			if (result) {
+				if (isDraft) $scope.drafts.splice($index, 1);else $scope.feeds.splice($index, 1);
+				PostService.removePost(feed.id);
+			}
+		});
+	};
+}).controller("profileBlogsController", function ($scope, $stateParams, $http, HashbookService) {
+
+	$scope.blogs = [];
+	$scope.profileIdentifier = $stateParams.profileIdentifier;
+	HashbookService.getHashbooks($scope.profileIdentifier, {}, function (rHashbooks) {
+		$scope.blogs = rHashbooks;
+	});
+
+	$scope.deleteHashbook = function (blogId, blogSlug, $index) {
+
+		bootbox.prompt("Do you really want to delete this Hashbook? You will not be able to revoke it. Write <b>'" + blogSlug.toUpperCase() + "'</b> to confirm.", function (result) {
+			if (!result) return;
+			if (result.toUpperCase() == blogSlug.toUpperCase()) {
+				bootbox.confirm("Do you really really want irrevocablly to delete it? Sure? Second thoughts?", function (result) {
+					if (result) {
+						$http.delete("/api/hashbook/" + blogSlug);
+						return $scope.blogs.splice($index, 1);
+					} else {
+						return;
+					}
+				});
+			}
+		});
+	};
+}).service("ProfileService", function ($http, API_URL) {
+
+	var fetchProfile = function fetchProfile(profileId, callback) {
+		$http.get(API_URL + "/api/profile/" + profileId).then(function (response) {
+
+			callback(response.data);
+		});
+	};
+
+	var fetchProfileStatus = function fetchProfileStatus(query, callback) {
+		$http({
+			url: API_URL + "/api/profile/status",
+			method: "GET",
+			params: {}
+		}).then(function (response) {
+
+			callback(response.data);
+		});
+	};
+
+	var fetchRecommentedProfiles = function fetchRecommentedProfiles(profileId, params, callback) {
+		$http({
+			url: API_URL + "/api/profile/" + profileId + "/recommented/accounts",
+			method: "GET",
+			params: params
+		}).then(function (response) {
+
+			callback(response.data);
+		});
+	};
+
+	return {
+		fetchProfileStatus: fetchProfileStatus,
+		fetchProfile: fetchProfile,
+		fetchRecommentedProfiles: fetchRecommentedProfiles
+	};
+}).controller("discoverController", function ($rootScope, $stateParams, $scope, ProfileService) {
+	ProfileService.fetchRecommentedProfiles($stateParams.profileId, {}, function (rProfiles) {});
+}).controller("notifsController", function ($rootScope, $scope, notifs, $http) {
+	$scope.notifs = notifs;
+	$scope.page = 1;
+	$scope.limit = 30;
+	$rootScope.isLoading = true;
+	$scope.postsAvailable = true;
+
+	$scope.markAllNotifsAsRead = function () {
+		$http.put("/api/notifications/read_all");
+		if ($rootScope.userStatus) {
+			$rootScope.userStatus.notifications_count = 0;
+		}
+		$scope.notifs = $scope.notifs.map(function (item) {
+			item.status = 1;
+			return item;
+		});
+	};
+
+	$scope.markNotifAsRead = function (notif, index) {
+		if (notif.status == 0) {
+			$scope.notifs[index].status = 1;
+			return $http.put("/api/notifications/read_one/" + notif.event_id);
+		}
+	};
+
+	$scope.fetchNotifs = function (page, limit) {
+		$http.get("/api/notifications?page=" + page + "&limit=" + limit).then(function (response) {
+			response.data.forEach(function (feed) {
+				$scope.notifs.push(feed);
+			});
+
+			if (response.data.length < $scope.limit) {
+				$scope.postsAvailable = false;
+			} else {
+				$scope.postsAvailable = true;
+			}
+		});
+	};
+
+	$scope.loadMoreNotifs = function () {
+		if (!$rootScope.activeCalls && $scope.postsAvailable) {
+			$scope.page = $scope.page + 1;
+			$scope.fetchNotifs($scope.page, $scope.limit);
+		}
+	};
+
+	$scope.displayPost = function (notif) {
+		if (notif.event_type == 2 && notif.post_type_id == 4) {
+			return "pic";
+		}
+		if (notif.event_type == 2 && (notif.post_type_id == 3 || notif.post_type_id == 2)) {
+			return 'post "' + notif.post_title + '"';
+		}
+
+		return "post";
+	};
+}).controller("profileController", _ProfileCtrl2.default).controller("editorController", _EditorCtrl2.default).controller("feedsController", _FeedsCtrl2.default).controller("welcomeController", _WelcomeCtrl2.default).controller("draftsController", _DraftsCtrl2.default).run(function ($rootScope, $state, ViciAuth) {
+	$rootScope.$on('$stateChangeStart', function (event, next, nextParams, fromState) {
+		if (next.name == "starter.welcome") {
+			$rootScope.welcome = true;
+		} else {
+			$rootScope.welcome = false;
+		}
+		if (next.name == "starter.login" || next.name == "starter.signup" || next.name == "blog") {
+			$rootScope.noHeader = true;
+		} else {
+			$rootScope.noHeader = false;
+		}
+
+		ViciAuth.validate(function (data) {
+			if (data && data.userId) {
+				var u = {
+					id: data.userId,
+					profileImageUrl: data.profileImageUrl,
+					name: data.name
+				};
+				$rootScope.user = u;
+			} else {
+				$rootScope.user = false;
+				if (next.name == "vicigo.feeds") {
+					$state.go("starter.welcome");
+				}
+			}
+		});
+	});
+}).directive('backImg', function () {
+	return function (scope, element, attrs) {
+		var url = attrs.backImg;
+		element.css({
+			'background-image': 'url(' + url + ')',
+			'background-size': 'cover'
+		});
+	};
+}).directive('fallbackSrc', function () {
+	var fallbackSrc = {
+		link: function postLink(scope, iElement, iAttrs) {
+			iElement.bind('error', function () {
+				angular.element(this).attr("src", iAttrs.fallbackSrc);
+			});
+		}
+	};
+	return fallbackSrc;
+}).directive('feed', _component2.default).directive('postHeader', function () {
+	return {
+		templateUrl: '/templates/directives/postHeader.html'
+	};
+});
 
 /***/ }),
 /* 15 */
-/***/ (function(module, exports) {
+/***/ (function(module, exports, __webpack_require__) {
 
-module.exports = "<div class=\"row\">\n<div class=\"push feed\">\n\t\t\t\t<!-- HEADER -->\n\t\t\t\t<div class=\"feed-header\">\n\t\t\t\t\t\n\t\t\t\t\t\t\t\t\t<!-- AUTHOR -->\n\t\t\t\t\t<div class=\"feed-author\" ng-if=\"feed.post_type_id > 1\">\n\t\t\t\t\t\t<ul class=\"list-unstyled\" >\n\t\t\t\t\t\t\t<!-- AUTHOR IMAGE -->\n\t\t\t\t\t\t\t<li>\n\t\t\t\t\t\t\t\t<img fallback-src=\"{{'/img/avatar.png'}}\" ng-src=\"{{feed.authorImage ? feed.authorImage : '/img/avatar.png'}}\">\n\t\t\t\t\t\t\t</li>\n\t\t\t\t\t\t\n\t\t\t\t\t\t\t<!-- END AUTHOR IMAGE -->\n\n\t\t\t\t\t\t\t<!-- AUTHOR REFERENCES -->\n\t\t\t\t\t\t\t<li>\n\t\t\t\t\t\t\t\t<strong style=\"margin-top:15px;\"><a ui-sref=\"vicigo.profile({profileId:feed.authorId})\">{{feed.authorName}}</a></strong>\n\t\t\t\t\t\t\t</li>\n\t\t\t\t\t\t\t<!-- END AUTHOR REFERENCES -->\n\t\t\t\t\t\t\t<li class=\"feed-date\">\n\t\t\t\t\t\t\t\t\t\t<span class=\"text-muted\"><small>{{ feed.created_at }}</small></span>\n\t\t\t\t\t\t\t</li>\n\t\t\t\t\t\t</ul>\n\t\t\t\t\t</div>\n\t\t\t\t\t<!-- END AUTHOR -->\n\t\t\t\t\t\n\t\t\t\t</div>\n\t\t\t\t<!-- END HEADER -->\n\t\t\n\n\n\t\t\t\t\n\t\t\t\t\n\t\t\t\t\n\t\t\t\t<div ng-class=\"{ 'post-feed-body' : feed.post_type_id == 2 || feed.post_type_id == 3, 'image-feed-body' : feed.post_type_id == 4 || feed.post_type_id == 5 }\">\n\t\t\t\t\t<!-- TITLE -->\n\t\t\t\t\t<div class=\"feed-title\" ng-if=\"hasTitle(feed.post_type_id)\">\n\t\t\t\t\t\t<h3><strong><a ng-href=\"{{feed.link}}\">{{feed.title}}</a></strong></h3>\n\t\t\t\t\t</div>\n\t\t\t\t\t<!-- END TITLE -->\n\n\t\t\t\t\t\n\t\t\t\t\t<!-- IMAGE BODY href=\"/post/{{feed.id}}\" -->\n\t\t\t\t\t<div class=\"feed-body\" ng-click=\"goToPost(feed)\">\n\t\t\t\t\t\t\n\t\t\t\t\t\t<lazy-img ng-if=\"feed.image_url\" class=\"lazy\" ng-src=\"{{trustSrc(feed.image_url)}}\" alt=\"image\"></lazy-img>\n\t\t\t\t\t\t<p ng-if=\"feed.body && feed.post_type_id !== 4 && feed.post_type_id !== 5\" class=\"feed-article\">\n\t\t\t\t\t\t\t\t{{displayFeedBody(feed.body)}}\n\t\t\t\t\t\t</p>\n\t\t\t\t\t\t\n\t\t\t\t\t</div>\n\t\t\t\t\t<!-- END POST  BODY -->\n\t\t\t\t\t\n\t\t\t\t\n\n\t\t\t\t\t<!----------------------- POST BODY ENDS ---------------------------------->\n\t\t\t\t</div>\n\t\t\t\t\n\t\t\t<!-- footer -->\t\n\t\t\t<div class=\"feed-footer\">\n\t\t\t\n\t\t\t<div class=\"row hashtags\">\n\t\t\t\t\t\t<div class=\"col-xs-12\">\n\t\t\t\t\t\t\t<div class=\"padding-left:5px;padding-right:5px;\">\n\t\t\t\t\t\t\t\t<a class=\"pull-left hashtag\" ng-repeat=\"hashtag in feed.hashtags\" ui-sref=\"vicigo.hashtag({ hashtag : hashtag.hashtag})\">#{{ ::hashtag.hashtag}}</a>\n\t\t\t\t\t\t\t</div>\n\t\t\t\t\t\t\t\n\t\t\t\t\t\t</div>\n\t\t\t</div>\n\t\t\t\t\n\t\t\t\t\n\t\t\t\t<div style=\"row\">\n\t\t\t\t\t<div class=\"col-xs-12\" >\n\t\t\t<ul class=\"pointer pull-left list-inline list-unstyled list\" ng-click=\"showUpvotes(feed)\" >\n\t\t\t\t\t\t\t<li>\n\t\t\t\t\t\t\t\t<span class=\"btn default\">\n\t\t\t\t\t\t\t\t\t<i class=\"fa fa-heart-o\"></i>\n\t\t\t\t\t\t\t\t\t<span> {{ ::feed.upvotes_count}}</span>\n\t\t\t\t\t\t\t\t</span>\n\t\t\t\t\t\t\t</li>\n\n\t\t\t\t\t\t\t<li>\n\t\t\t\t\t\t\t\t<span class=\"btn default\">\n\t\t\t\t\t\t\t\t\t<i class=\"fa fa-comment-o\"></i>\n\t\t\t\t\t\t\t\t\t<span> {{ ::feed.comment_count}}</span>\n\t\t\t\t\t\t\t\t</span>\n\t\t\t\t\t\t\t</li>\n\t\t\t\t\t\t\t\t<li>\n\n\t\t\t\t\t\t\t\t<span class=\"btn default\">\n\t\t\t\t\t\t\t\t\t<i class=\"fa fa-eye\"></i>\n\t\t\t\t\t\t\t\t\t<span> {{ ::feed.views_count}}</span>\n\t\t\t\t\t\t\t\t</span>\n\t\t\t\t\t\t\t</li>\n\n\t\t\t\t\t\t</ul>\n\t\t\t\t</div>\n\t\t\t\t\t\t\n\t\t\t\t\t</div>\n\t\t\t\n\t\t\t\t\n\t\t\t\t\t<!-- OPTIONS -->\n\t\t\t\t\t<div class=\"row feed-actions\" style=\"padding-bottom:5px;\">\n\t\t\t\t\t\t\t<div class=\"col-xs-12\">\n\t\t\t\t\t\t\t\t<form ng-submit=\"postComment(feed.id,feed.commentDraft,$index)\">\n\t\t\t\t\t\t<ul class=\" list-unstyled list-inline list\" >\n\t\t\t\t\t\t\t<li style=\"width:50px;\">\n\t\t\t\t\t\t\t\t<span ng-click=\"upvote(feed.id, $index)\" style=\"cursor:pointer;\">\n\t\t\t\t\t\t\t\t\t<i ng-if=\"feed.alreadyUpvoted\" class=\"upvoted rate-btn fa fa-heart\"></i>\n\t\t\t\t\t\t\t\t\t<i ng-if=\"!feed.alreadyUpvoted\" class=\"rate-btn fa fa-heart-o fa-2x\"></i>\n\t\t\t\t\t\t\t\t</span>\n\t\t\t\t\t\t\t</li>\n\n\t\t\t\t\t\t\t<li style=\"width:500px;\">\n\t\t\t\t\t\t\t\t\t\t\t<input style=\"width:500px;\" ng-model=\"feed.commentDraft\" placeholder=\"Write your comment ...\">\n\t\t\t\t\t\t\t</li>\n\t\t\t\t\t\n\t\t\t\t\t\t\t<li style=\"width:50px;\" uib-dropdown on-toggle=\"toggled(open)\">\n\t\t\t\t\n      <a href=\"#\" uib-dropdown-toggle ng-disabled=\"disabled\">\n\t\t\t\t\t<i class=\"fa fa-ellipsis-h\"></i>\n      </a>\n      <ul uib-dropdown-menu class=\"uib-dropdown-menu header_menu list-unstyled\" role=\"menu\" aria-labelledby=\"single-button\">\n        <li  ng-if=\"user.id==feed.authorId && (feed.post_type_id == 4 || feed.post_type_id == 5)\"><a href=\"#\"  ng-click=\"editPhoto(feed)\">Edit</a>\n\t\t\t\t\t\t\t</li>\n\t\t\t\t\t\t\t<li ng-if=\"user.id==feed.authorId && (feed.post_type_id == 3 || feed.post_type_id == 2)\"><a href=\"#\"  target=\"_self\" ng-href=\"/edit/{{feed.id}}\">Edit</a>\n\t\t\t\t\t\t\t</li>\n\t\t\t\t\t\t\t<li ng-if=\"user.id==feed.authorId\"><a href=\"#\"  ng-click=\"removePost(feed,false,$index)\">Remove</a>\n\t\t\t\t\t\t\t</li>\n\t\t\t\t\t\t\t<li><a href=\"#\" >Share</a>\n\t\t\t\t\t\t\t</li>\n\t\t\t\t\t\t\t<li><a href=\"#\" >Report</a>\n\t\t\t\t\t\t\t</li>\n      </ul>\n\n\t\t\t\t\t\t\t</li>\n\n\t\t\t\t\t\t\t\n\n\n\t\t\t\t\t\t</ul>\n\t\t\t\t\t</form>\n\t\t\t\t\n\t\t\t\t\t</div>\n\t\t\t\t\t</div>\n\t\t\t\t\t<!-- END OPTIONS -->\n\n\n\n\n\t\t\t\t\t<!--COMMENTS-->\n\t\t\t\t\t<div class=\"row\">\n\t\t\t\t\t\t<div class=\"col-xs-12\">\n\t\t\t\t\t\t<div style=\"padding:5px;\">\n\t\t\t\t\t\t\t\n\t\t\t\t\t\t\t\n\t\t\t\t\t\t\t\n\t\t\t\t\t\t<a ng-if=\"feed.comment_count&&!feed.showComments\" class=\"text-muted\" ng-click=\"showComments(feed.id,$index)\">Show Comments</a>\n\t\t\t\t\n    <table ng-if=\"feed.comments.length\" style=\"padding:10px;\">\n        <tbody>\t\n                    <tr style=\"width:100%;\" ng-repeat=\"comment in feed.comments\">\n                            <td style=\"width:100%; float:left;font-size:13px;\">\n                                <p style=\"float:left\">\n                                        <strong > <a href=\"/profile/{{comment.authorId}}\" >{{comment.authorName}} </a></strong> {{comment.body}} <small ng-if=\"user.id==comment.authorId\"> <a href=\"#\" ng-click=\"deleteComment(feed.id,comment.comment_id,$parent.$index,$index)\">remove</a> </small>\n                                </p>\n                                \n                            </td>\t\n                        </tr>\n        </tbody>\t\n    </table>\t\n\t\t\t\t\t\t\t\n\t\t\t</div>\t\n\t\t\t\t\t</div>\n\n\t\t\t\t\t</div>\n      </div>\n\t\t\t<!-- end footer-->\n\t\t\t</div>\n</div>";
+"use strict";
+
+
+exports.byteLength = byteLength
+exports.toByteArray = toByteArray
+exports.fromByteArray = fromByteArray
+
+var lookup = []
+var revLookup = []
+var Arr = typeof Uint8Array !== 'undefined' ? Uint8Array : Array
+
+var code = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+for (var i = 0, len = code.length; i < len; ++i) {
+  lookup[i] = code[i]
+  revLookup[code.charCodeAt(i)] = i
+}
+
+// Support decoding URL-safe base64 strings, as Node.js does.
+// See: https://en.wikipedia.org/wiki/Base64#URL_applications
+revLookup['-'.charCodeAt(0)] = 62
+revLookup['_'.charCodeAt(0)] = 63
+
+function getLens (b64) {
+  var len = b64.length
+
+  if (len % 4 > 0) {
+    throw new Error('Invalid string. Length must be a multiple of 4')
+  }
+
+  // Trim off extra bytes after placeholder bytes are found
+  // See: https://github.com/beatgammit/base64-js/issues/42
+  var validLen = b64.indexOf('=')
+  if (validLen === -1) validLen = len
+
+  var placeHoldersLen = validLen === len
+    ? 0
+    : 4 - (validLen % 4)
+
+  return [validLen, placeHoldersLen]
+}
+
+// base64 is 4/3 + up to two characters of the original data
+function byteLength (b64) {
+  var lens = getLens(b64)
+  var validLen = lens[0]
+  var placeHoldersLen = lens[1]
+  return ((validLen + placeHoldersLen) * 3 / 4) - placeHoldersLen
+}
+
+function _byteLength (b64, validLen, placeHoldersLen) {
+  return ((validLen + placeHoldersLen) * 3 / 4) - placeHoldersLen
+}
+
+function toByteArray (b64) {
+  var tmp
+  var lens = getLens(b64)
+  var validLen = lens[0]
+  var placeHoldersLen = lens[1]
+
+  var arr = new Arr(_byteLength(b64, validLen, placeHoldersLen))
+
+  var curByte = 0
+
+  // if there are placeholders, only get up to the last complete 4 chars
+  var len = placeHoldersLen > 0
+    ? validLen - 4
+    : validLen
+
+  for (var i = 0; i < len; i += 4) {
+    tmp =
+      (revLookup[b64.charCodeAt(i)] << 18) |
+      (revLookup[b64.charCodeAt(i + 1)] << 12) |
+      (revLookup[b64.charCodeAt(i + 2)] << 6) |
+      revLookup[b64.charCodeAt(i + 3)]
+    arr[curByte++] = (tmp >> 16) & 0xFF
+    arr[curByte++] = (tmp >> 8) & 0xFF
+    arr[curByte++] = tmp & 0xFF
+  }
+
+  if (placeHoldersLen === 2) {
+    tmp =
+      (revLookup[b64.charCodeAt(i)] << 2) |
+      (revLookup[b64.charCodeAt(i + 1)] >> 4)
+    arr[curByte++] = tmp & 0xFF
+  }
+
+  if (placeHoldersLen === 1) {
+    tmp =
+      (revLookup[b64.charCodeAt(i)] << 10) |
+      (revLookup[b64.charCodeAt(i + 1)] << 4) |
+      (revLookup[b64.charCodeAt(i + 2)] >> 2)
+    arr[curByte++] = (tmp >> 8) & 0xFF
+    arr[curByte++] = tmp & 0xFF
+  }
+
+  return arr
+}
+
+function tripletToBase64 (num) {
+  return lookup[num >> 18 & 0x3F] +
+    lookup[num >> 12 & 0x3F] +
+    lookup[num >> 6 & 0x3F] +
+    lookup[num & 0x3F]
+}
+
+function encodeChunk (uint8, start, end) {
+  var tmp
+  var output = []
+  for (var i = start; i < end; i += 3) {
+    tmp =
+      ((uint8[i] << 16) & 0xFF0000) +
+      ((uint8[i + 1] << 8) & 0xFF00) +
+      (uint8[i + 2] & 0xFF)
+    output.push(tripletToBase64(tmp))
+  }
+  return output.join('')
+}
+
+function fromByteArray (uint8) {
+  var tmp
+  var len = uint8.length
+  var extraBytes = len % 3 // if we have 1 byte left, pad 2 bytes
+  var parts = []
+  var maxChunkLength = 16383 // must be multiple of 3
+
+  // go through the array every three bytes, we'll deal with trailing stuff later
+  for (var i = 0, len2 = len - extraBytes; i < len2; i += maxChunkLength) {
+    parts.push(encodeChunk(
+      uint8, i, (i + maxChunkLength) > len2 ? len2 : (i + maxChunkLength)
+    ))
+  }
+
+  // pad the end with zeros, but make sure to not forget the extra bytes
+  if (extraBytes === 1) {
+    tmp = uint8[len - 1]
+    parts.push(
+      lookup[tmp >> 2] +
+      lookup[(tmp << 4) & 0x3F] +
+      '=='
+    )
+  } else if (extraBytes === 2) {
+    tmp = (uint8[len - 2] << 8) + uint8[len - 1]
+    parts.push(
+      lookup[tmp >> 10] +
+      lookup[(tmp >> 4) & 0x3F] +
+      lookup[(tmp << 2) & 0x3F] +
+      '='
+    )
+  }
+
+  return parts.join('')
+}
+
 
 /***/ }),
 /* 16 */
-/***/ (function(module, exports, __webpack_require__) {
-
-/*
-	MIT License http://www.opensource.org/licenses/mit-license.php
-	Author Tobias Koppers @sokra
-*/
-var stylesInDom = {},
-	memoize = function(fn) {
-		var memo;
-		return function () {
-			if (typeof memo === "undefined") memo = fn.apply(this, arguments);
-			return memo;
-		};
-	},
-	isOldIE = memoize(function() {
-		return /msie [6-9]\b/.test(self.navigator.userAgent.toLowerCase());
-	}),
-	getHeadElement = memoize(function () {
-		return document.head || document.getElementsByTagName("head")[0];
-	}),
-	singletonElement = null,
-	singletonCounter = 0,
-	styleElementsInsertedAtTop = [],
-	fixUrls = __webpack_require__(17);
-
-module.exports = function(list, options) {
-	if(typeof DEBUG !== "undefined" && DEBUG) {
-		if(typeof document !== "object") throw new Error("The style-loader cannot be used in a non-browser environment");
-	}
-
-	options = options || {};
-	options.attrs = typeof options.attrs === "object" ? options.attrs : {};
-
-	// Force single-tag solution on IE6-9, which has a hard limit on the # of <style>
-	// tags it will allow on a page
-	if (typeof options.singleton === "undefined") options.singleton = isOldIE();
-
-	// By default, add <style> tags to the bottom of <head>.
-	if (typeof options.insertAt === "undefined") options.insertAt = "bottom";
-
-	var styles = listToStyles(list);
-	addStylesToDom(styles, options);
-
-	return function update(newList) {
-		var mayRemove = [];
-		for(var i = 0; i < styles.length; i++) {
-			var item = styles[i];
-			var domStyle = stylesInDom[item.id];
-			domStyle.refs--;
-			mayRemove.push(domStyle);
-		}
-		if(newList) {
-			var newStyles = listToStyles(newList);
-			addStylesToDom(newStyles, options);
-		}
-		for(var i = 0; i < mayRemove.length; i++) {
-			var domStyle = mayRemove[i];
-			if(domStyle.refs === 0) {
-				for(var j = 0; j < domStyle.parts.length; j++)
-					domStyle.parts[j]();
-				delete stylesInDom[domStyle.id];
-			}
-		}
-	};
-};
-
-function addStylesToDom(styles, options) {
-	for(var i = 0; i < styles.length; i++) {
-		var item = styles[i];
-		var domStyle = stylesInDom[item.id];
-		if(domStyle) {
-			domStyle.refs++;
-			for(var j = 0; j < domStyle.parts.length; j++) {
-				domStyle.parts[j](item.parts[j]);
-			}
-			for(; j < item.parts.length; j++) {
-				domStyle.parts.push(addStyle(item.parts[j], options));
-			}
-		} else {
-			var parts = [];
-			for(var j = 0; j < item.parts.length; j++) {
-				parts.push(addStyle(item.parts[j], options));
-			}
-			stylesInDom[item.id] = {id: item.id, refs: 1, parts: parts};
-		}
-	}
-}
-
-function listToStyles(list) {
-	var styles = [];
-	var newStyles = {};
-	for(var i = 0; i < list.length; i++) {
-		var item = list[i];
-		var id = item[0];
-		var css = item[1];
-		var media = item[2];
-		var sourceMap = item[3];
-		var part = {css: css, media: media, sourceMap: sourceMap};
-		if(!newStyles[id])
-			styles.push(newStyles[id] = {id: id, parts: [part]});
-		else
-			newStyles[id].parts.push(part);
-	}
-	return styles;
-}
-
-function insertStyleElement(options, styleElement) {
-	var head = getHeadElement();
-	var lastStyleElementInsertedAtTop = styleElementsInsertedAtTop[styleElementsInsertedAtTop.length - 1];
-	if (options.insertAt === "top") {
-		if(!lastStyleElementInsertedAtTop) {
-			head.insertBefore(styleElement, head.firstChild);
-		} else if(lastStyleElementInsertedAtTop.nextSibling) {
-			head.insertBefore(styleElement, lastStyleElementInsertedAtTop.nextSibling);
-		} else {
-			head.appendChild(styleElement);
-		}
-		styleElementsInsertedAtTop.push(styleElement);
-	} else if (options.insertAt === "bottom") {
-		head.appendChild(styleElement);
-	} else {
-		throw new Error("Invalid value for parameter 'insertAt'. Must be 'top' or 'bottom'.");
-	}
-}
-
-function removeStyleElement(styleElement) {
-	styleElement.parentNode.removeChild(styleElement);
-	var idx = styleElementsInsertedAtTop.indexOf(styleElement);
-	if(idx >= 0) {
-		styleElementsInsertedAtTop.splice(idx, 1);
-	}
-}
-
-function createStyleElement(options) {
-	var styleElement = document.createElement("style");
-	options.attrs.type = "text/css";
-
-	attachTagAttrs(styleElement, options.attrs);
-	insertStyleElement(options, styleElement);
-	return styleElement;
-}
-
-function createLinkElement(options) {
-	var linkElement = document.createElement("link");
-	options.attrs.type = "text/css";
-	options.attrs.rel = "stylesheet";
-
-	attachTagAttrs(linkElement, options.attrs);
-	insertStyleElement(options, linkElement);
-	return linkElement;
-}
-
-function attachTagAttrs(element, attrs) {
-	Object.keys(attrs).forEach(function (key) {
-		element.setAttribute(key, attrs[key]);
-	});
-}
-
-function addStyle(obj, options) {
-	var styleElement, update, remove;
-
-	if (options.singleton) {
-		var styleIndex = singletonCounter++;
-		styleElement = singletonElement || (singletonElement = createStyleElement(options));
-		update = applyToSingletonTag.bind(null, styleElement, styleIndex, false);
-		remove = applyToSingletonTag.bind(null, styleElement, styleIndex, true);
-	} else if(obj.sourceMap &&
-		typeof URL === "function" &&
-		typeof URL.createObjectURL === "function" &&
-		typeof URL.revokeObjectURL === "function" &&
-		typeof Blob === "function" &&
-		typeof btoa === "function") {
-		styleElement = createLinkElement(options);
-		update = updateLink.bind(null, styleElement, options);
-		remove = function() {
-			removeStyleElement(styleElement);
-			if(styleElement.href)
-				URL.revokeObjectURL(styleElement.href);
-		};
-	} else {
-		styleElement = createStyleElement(options);
-		update = applyToTag.bind(null, styleElement);
-		remove = function() {
-			removeStyleElement(styleElement);
-		};
-	}
-
-	update(obj);
-
-	return function updateStyle(newObj) {
-		if(newObj) {
-			if(newObj.css === obj.css && newObj.media === obj.media && newObj.sourceMap === obj.sourceMap)
-				return;
-			update(obj = newObj);
-		} else {
-			remove();
-		}
-	};
-}
-
-var replaceText = (function () {
-	var textStore = [];
-
-	return function (index, replacement) {
-		textStore[index] = replacement;
-		return textStore.filter(Boolean).join('\n');
-	};
-})();
-
-function applyToSingletonTag(styleElement, index, remove, obj) {
-	var css = remove ? "" : obj.css;
-
-	if (styleElement.styleSheet) {
-		styleElement.styleSheet.cssText = replaceText(index, css);
-	} else {
-		var cssNode = document.createTextNode(css);
-		var childNodes = styleElement.childNodes;
-		if (childNodes[index]) styleElement.removeChild(childNodes[index]);
-		if (childNodes.length) {
-			styleElement.insertBefore(cssNode, childNodes[index]);
-		} else {
-			styleElement.appendChild(cssNode);
-		}
-	}
-}
-
-function applyToTag(styleElement, obj) {
-	var css = obj.css;
-	var media = obj.media;
-
-	if(media) {
-		styleElement.setAttribute("media", media)
-	}
-
-	if(styleElement.styleSheet) {
-		styleElement.styleSheet.cssText = css;
-	} else {
-		while(styleElement.firstChild) {
-			styleElement.removeChild(styleElement.firstChild);
-		}
-		styleElement.appendChild(document.createTextNode(css));
-	}
-}
-
-function updateLink(linkElement, options, obj) {
-	var css = obj.css;
-	var sourceMap = obj.sourceMap;
-
-	/* If convertToAbsoluteUrls isn't defined, but sourcemaps are enabled
-	and there is no publicPath defined then lets turn convertToAbsoluteUrls
-	on by default.  Otherwise default to the convertToAbsoluteUrls option
-	directly
-	*/
-	var autoFixUrls = options.convertToAbsoluteUrls === undefined && sourceMap;
-
-	if (options.convertToAbsoluteUrls || autoFixUrls){
-		css = fixUrls(css);
-	}
-
-	if(sourceMap) {
-		// http://stackoverflow.com/a/26603875
-		css += "\n/*# sourceMappingURL=data:application/json;base64," + btoa(unescape(encodeURIComponent(JSON.stringify(sourceMap)))) + " */";
-	}
-
-	var blob = new Blob([css], { type: "text/css" });
-
-	var oldSrc = linkElement.href;
-
-	linkElement.href = URL.createObjectURL(blob);
-
-	if(oldSrc)
-		URL.revokeObjectURL(oldSrc);
-}
-
-
-/***/ }),
-/* 17 */
-/***/ (function(module, exports) {
-
-
-/**
- * When source maps are enabled, `style-loader` uses a link element with a data-uri to
- * embed the css on the page. This breaks all relative urls because now they are relative to a
- * bundle instead of the current page.
- *
- * One solution is to only use full urls, but that may be impossible.
- *
- * Instead, this function "fixes" the relative urls to be absolute according to the current page location.
- *
- * A rudimentary test suite is located at `test/fixUrls.js` and can be run via the `npm test` command.
- *
- */
-
-module.exports = function (css) {
-  // get current location
-  var location = typeof window !== "undefined" && window.location;
-
-  if (!location) {
-    throw new Error("fixUrls requires window.location");
-  }
-
-	// blank or null?
-	if (!css || typeof css !== "string") {
-	  return css;
-  }
-
-  var baseUrl = location.protocol + "//" + location.host;
-  var currentDir = baseUrl + location.pathname.replace(/\/[^\/]*$/, "/");
-
-	// convert each url(...)
-	var fixedCss = css.replace(/url *\( *(.+?) *\)/g, function(fullMatch, origUrl) {
-		// strip quotes (if they exist)
-		var unquotedOrigUrl = origUrl
-			.replace(/^"(.*)"$/, function(o, $1){ return $1; })
-			.replace(/^'(.*)'$/, function(o, $1){ return $1; });
-
-		// already a full url? no change
-		if (/^(#|data:|http:\/\/|https:\/\/|file:\/\/\/)/i.test(unquotedOrigUrl)) {
-		  return fullMatch;
-		}
-
-		// convert the url to a full url
-		var newUrl;
-
-		if (unquotedOrigUrl.indexOf("//") === 0) {
-		  	//TODO: should we add protocol?
-			newUrl = unquotedOrigUrl;
-		} else if (unquotedOrigUrl.indexOf("/") === 0) {
-			// path should be relative to the base url
-			newUrl = baseUrl + unquotedOrigUrl; // already starts with '/'
-		} else {
-			// path should be relative to current directory
-			newUrl = currentDir + unquotedOrigUrl.replace(/^\.\//, ""); // Strip leading './'
-		}
-
-		// send back the fixed url(...)
-		return "url(" + JSON.stringify(newUrl) + ")";
-	});
-
-	// send back the fixed css
-	return fixedCss;
-};
-
-
-/***/ }),
-/* 18 */
-/***/ (function(module, exports) {
-
-var g;
-
-// This works in non-strict mode
-g = (function() {
-	return this;
-})();
-
-try {
-	// This works if eval is allowed (see CSP)
-	g = g || Function("return this")() || (1,eval)("this");
-} catch(e) {
-	// This works if the window reference is available
-	if(typeof window === "object")
-		g = window;
-}
-
-// g can still be undefined, but nothing to do about it...
-// We return undefined, instead of nothing here, so it's
-// easier to handle this case. if(!global) { ...}
-
-module.exports = g;
-
-
-/***/ }),
-/* 19 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -16593,9 +17652,9 @@ module.exports = g;
 
 
 
-var base64 = __webpack_require__(20)
-var ieee754 = __webpack_require__(21)
-var isArray = __webpack_require__(22)
+var base64 = __webpack_require__(15)
+var ieee754 = __webpack_require__(20)
+var isArray = __webpack_require__(21)
 
 exports.Buffer = Buffer
 exports.SlowBuffer = SlowBuffer
@@ -18373,131 +19432,113 @@ function isnan (val) {
   return val !== val // eslint-disable-line no-self-compare
 }
 
-/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(18)))
+/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(24)))
+
+/***/ }),
+/* 17 */
+/***/ (function(module, exports, __webpack_require__) {
+
+exports = module.exports = __webpack_require__(18)(undefined);
+// imports
+exports.push([module.i, "@import url(https://fonts.googleapis.com/css?family=Open+Sans:300,700);", ""]);
+exports.push([module.i, "@import url(https://fonts.googleapis.com/css?family=Roboto:100,500);", ""]);
+
+// module
+exports.push([module.i, "/*--------------------- FONT (OPEN SANS) IMPORT FROM GOOGLE FONTS ----------------------*/\n\n/*----------------------------------------------------------------------------------------\n\t\t\t\t\t\t\t\t\t\tCOMMON STYLES\n-----------------------------------------------------------------------------------------*/\n\nbody {\n\twidth:100%;  \n\tfont-family: 'Open Sans', sans-serif;\n\tfont-size: 16px;\n\tfont-weight: 300;\n\t/* color: #777; */\n\tline-height: 1.6;\n\tbackground-color:#fafafa;\n}\n\na {\n\t/*color: #444;*/\n\ttext-decoration: none;\n\t-webkit-transition: all 0.25s ease-out;\n\t-moz-transition: all 0.25s ease-out;\n\t-ms-transition: all 0.25s ease-out;\n\t-o-transition: all 0.25s ease-out;\n\ttransition: all 0.25s ease-out;\n}\n\na:hover {\n\tcolor: #00aeff;\n\ttext-decoration: none;\n}\n\nh1 {\n\tfont-size: 50px;\n\tfont-family: 'Roboto', sans-serif;\n}\n\nh2 { font-size: 34px; }\n\nh3 { font-size: 22px; }\n\nh4 { font-size: 17px; }\n\nh1,\nh2,\nh3,\nh4 {\n\tcolor: #444;\n\tfont-weight: lighter;\n\tline-height:1.2;\n\tmargin:5px 0 5px 0;\n}\n\n.uppercase {\n\ttext-transform: uppercase;\n}\n\n.width640 {\n\twidth: 640px !important;\n}\n.width321 {\n\twidth: 321px !important;\n}\n\n\n\n.padding-5 {\n\tpadding: 5px;\n}\n.padding-10 {\n\tpadding: 10px;\n}\n.padding-30 {\n\tpadding: 30px;\n}\n\n\n/* BOOTSTRAP OVERRIDES */\n.navbar-default{\n\tbackground-color:white;\n\tborder-bottom: 1px solid #eeeeee;\n\t-webkit-box-shadow:0px 1px 1px #de1dde;\n -moz-box-shadow:0px 1px 1px #de1dde;\n box-shadow:0px 1px 1px #de1dde;\n}\n\n/*----------------------------------------------------------------------------------------\n\t\t\t\t\t\t\t\t\t\tNEWS\n--------------------*/\n\n.hashbook-container{\n\theight:200px;\n\tpadding:10px;\n}\n.hashbook{\n\theight:170px;\n\tborder: 1px solid black;\n\tborder-radius: 4px;\n}\n.hashbook-panel{\n\t\theight:200px;\n}\n\n.hashbook h2 {\n\tfont-size:22px;\n}\n.hashbook h4 {\n\tmargin:10px 0 10px 0 !important;\n}\n.header_menu {\n\tpadding:5px;\n\tfont-size:17px;\n\tfont-weight: bold !important;\n}\n.header_menu li {\n\t\t\t\tlist-style-type: none;\n        margin: 0;\n        padding: 0;\n        padding-top: 3px;\n        padding-bottom: 10px;\n        margin-bottom: 10px;\n        border-bottom: 1px solid #eeeeee;\n}\n.menu-item-profile {\n\tpadding:10px;\n}\n\n.news-list {\n\tborder-bottom: 1px solid #eee;\n\tmargin-bottom: 60px;\n}\n\n.news-list .news-element {\n\tborder-bottom: 1px solid #eee;\n\tpadding: 60px 0;\n}\n\n.list-feed-actions {\n\tpadding-left : 30px;\n\tpadding-right : 30px;\n}\n.list-feed-actions li {\n\tpadding-left : 20px;\n\tpadding-right : 20px;\n}\n\n.news-list li h3{\n\tfont-size: 25px;\n\tfont-weight: bold;\n\ttext-transform: none;\n\tmargin: 0 0 25px 0;\n}\n\n.news-info{ margin:0 0 30px 0;}\n\n#news .news-info { margin:0;}\n\n.news-info > div {\n\tdisplay: inline-block;\n\tpadding: 0 30px 0 0;\n}\n\n.news-info div:last-child {padding:0;}\n\n.news-info > div .icon {\n\tmargin: 0 10px 0 0;\n\tcolor: #ccc;\n}\n\n@media (max-width: 767px) {\n\n.text-center-sm {\n\t\ttext-align: center;\n}\n\t\n.news-list li { padding: 40px 0; }\n\n.news-list li h3 { font-size: 20px; }\n\n.news-info > div {\n\tfont-size: 14px;\n\tpadding: 0 10px 0 0;\n}\n\n.news-info > div .icon { margin: 0 5px 0 0; }\n\n}\n\n/* OTHER */\n\n\ntextarea {\n\tresize: vertical;\n}\n\ndiv.inline {\n\tfloat: left;\n}\n\n.rate-btn {\nfont-size:24px;\t\n}\n.upvoted{\n\tcolor:rgb(255,70,0)\n}\n/* header */\n\n@media(max-width:767px) {\n\t.navbar .navbar-form {\n\t\twidth: 200px;\n\t\tpadding-left: 10px;\n\t\tpadding-right: 0;\n\t}\n\tbody {\n\t\tpadding-top: 0px;\n\t}\n}\n\n@media(min-width:768px) {\n\t.navbar .navbar-form {\n\t\twidth: 300px;\n\t}\n\tbody {\n\t\tpadding-top: 70px;\n\t}\n}\n\nimg.lazy {\n\twidth: 100%;\n\t/*max-height: 400px;*/\n\tmin-height: 180px;\n\tdisplay: block;\n\t/* optional way, set loading as background */\n\tbackground-image: url('/img/loader-pacman.gif');\n\tbackground-repeat: no-repeat;\n\tbackground-position: 50% 50%;\n}\n\n.navbar .navbar-form {\n\tpadding-top: 0;\n\tpadding-bottom: 0;\n\tmargin-right: 0;\n\tmargin-left: 0;\n\tborder: 0;\n\t-webkit-box-shadow: none;\n\tbox-shadow: none;\n}\n\n.search-results-wrapper {\n\tposition: absolute;\n\ttop: 100%;\n\tleft: 0;\n\tz-index: 1000;\n\tdisplay: none;\n\tbackground-color: #f9f9f9;\n}\n\n.search-results-wrapper > .message {\n\tpadding: 10px 20px;\n\tborder-bottom: 1px solid #ddd;\n\tcolor: #868686;\n}\n\n.search-results-wrapper > .dropdown-menu {\n\tposition: static;\n\tfloat: none;\n\tdisplay: block;\n\tmin-width: 250px;\n\tbackground-color: transparent;\n\tborder: none;\n\tborder-radius: 0;\n\tbox-shadow: none;\n}\n\n\n/* end header */\n\n.header-logo {\n\twidth: 30px;\n}\n\n.image-center {\n\tdisplay: block;\n\tmargin-left: auto;\n\tmargin-right: auto\n}\n.pointer{\n\tcursor: pointer;\n}\n\n.bold {\n\tfont-weight: bold;\n}\n\n.slogan {\n\tfont-size: 16px;\n\tfont-weight: bold;\n}\n.middle-size {\n\tfont-size: 20px;\n\tpadding: 14px;\n}\n.bold-big {\n\tfont-size: 24px;\n\tpadding: 15px;\n\tfont-weight: bold;\n}\n\n.padding-top {\n\tpadding-top: 5px;\n}\n\n.side-padding {\n\tmargin-left: 5px;\n\tmargin-right: 5px;\n}\n\n.feed-container{\n\tmargin-top:5px;\n\tmargin-bottom:20px;\n} \n\n\n.feed {\n\tborder-style: solid;\n  border-width: 1px;\n\tborder-color: #F0F8FF;\n\tbackground-color: white;\n\tmax-width: 640px;\n\tmargin: 0 auto;\n\twidth:100% !important;\n}\n\n.feed .feed-header {\n\t  background-color:white;\n\t\tpadding-top:10px;\n\t\tpadding:5px;\n    border-bottom: 1px solid #F0F8FF;\n\t\tcursor: pointer;\n}\n\n.feed .feed-header img {\n\tborder-radius: 50%;\n\theight: 28px;\n\twidth: 28px;\n}\n\n.feed .feed-header ul li {\n    display: inline; \n}\n\n.feed .feed-header .feed-date {\n    float: right; \n}\n\n\n.feed-body {\n\tcursor: pointer;\n\twidth:100% !important;\n}\n.feed-body lazy-img {\n\tmax-width: 100% !important;\n\tdisplay: block;\n\tmargin-left: auto;\n\tmargin-right: auto;\n\tcursor: pointer;\n}\n.feed-body p {\n\tpadding:5px;\n\tfont-size: 15px;\n\tcursor: pointer;\n}\n\n.feed .feed-footer .hashtag {\n\tpadding: 2px;\n\tfont-weight: bold;\n\tfont-size: 12px;\n\tcursor: pointer;\n}\n\n.feed .feed-footer .feed-actions .list {\n    display: inline; \n    padding-left:5px;\n    padding-top:4px;\n}\n\n.feed .feed-footer .feed-actions .list li {\n    display: inline;\n    padding-left:10px;\n}\n\n\n\n\t.feed-hashtag {\n\t\tfont-size: 8px;\n\t}\n\n.post-feed-body {\n\twidth:100%;  \n\tfont-family: 'Open Sans', sans-serif;\n\n  font-weight: 500 !important;\n  font-style: normal !important;\n  font-size: 21px !important;\n  line-height: 1.58 !important;\n\t/* color: #777; */\n\tline-height: 1.6;\n\tbackground-color:white;\n\tmax-width: 100%;\n\tfont-size: 17px;\n}\n\n.postMainPicture{\n\tmax-width:100%;\n\tdisplay: block;\n  margin-left: auto;\n  margin-right: auto\n}\n\n@media(min-width:768px) {\n.post-title-container h1 {\n\t\tfont-size:38px;\n\t}\n\t\n.post-body {\n\twidth:100%;  \n\tfont-family: 'Open Sans', sans-serif;\n  font-weight: 500 !important;\n  font-style: normal !important;\n  font-size: 17px !important;\n  line-height: 1.58 !important;\n\t/* color: #777; */\n\tline-height: 1.6;\n\tmax-width: 100%;\n\tpadding: 5px;\n}\n\n}\n@media(max-width:768px) {\n\t.hashbook-title h1 {\n\t\tfont-size:24px !important;\n\t}\n\t\n\t.post-title-container h1 {\n\t\tfont-size:24px;\n\t}\n\t.post-body {\n\twidth:100%;  \n\tfont-family: 'Open Sans', sans-serif;\n  font-weight: 500 !important;\n  font-style: normal !important;\n  font-size: 17px !important;\n  line-height: 1.58 !important;\n\tmax-width: 100%;\n}\n}\n\n\n\n.post-body img {\n\tdisplay: block !important;\n  margin-left: auto !important;\n  margin-right: auto !important;\n\tmargin-top: 10px !important;\n\tmargin-down: 10px !important;\n\tmax-width: 100% !important;\n}\n.post-feed-body img {\n\tmargin-top: 10px;\n\tmargin-down: 10px;\n\tmargin-left: auto;\n\tmargin-right: auto;\n\twidth: 100%;\n}\n\n.image-feed-body {\n\tmax-width: 100%;\n\tpadding: 0px;\n}\n\n.feed-title {\n\tpadding-left:5px;\n\tpadding-right:5px;\n}\n\n.block-center {\n\tmargin: 0 auto;\n}\n\n.img-thumbnail-avatar-big {\n\theight: 150px;\n\twidth: 150px;\n}\n\n.img-thumbnail-avatar-normal {\n\theight: 100px;\n\twidth: 100px;\n}\n\n.img-avatar-blog {\n\theight: 30px;\n\twidth: 30px;\n}\n.post-content{\n\twidth:100%;\n}\n.img-thumbnail-avatar-small {\n\theight: 45px;\n\twidth: 45px;\n}\n\n.img-center{\n\t\tdisplay: block;\n    margin-left: auto;\n    margin-right: auto;\n}\n.img-thumbnail-avatar-smallest {\n\theight: 28px;\n\twidth: 28px;\n}\n\n.hashtag {\n\tpadding: 2px;\n\tfont-weight: bold;\n\tfont-size: 12px;\n}\n.padding-3 {\n\tpadding:3px;\n}\n\n/* header \n@media(max-width:767px) {\n.feed-hashtag {\n \n}\n}*/\n\n@media(min-width:768px) {\n\t.feed-hashtag {\n\t\tfont-size: 8px;\n\t}\n}\n\n.hashtag-big {\n\tpadding: 10px;\n\tfont-size: 30px;\n\tfont-weight: bold;\n}\n\n.selected {\n\tfont-weight: bold;\n}\n\n.cursor-pointer {\n\tcursor: pointer;\n}\n\n.horiontal-list li {\n\tdisplay: inline;\n\tlist-style-type: none;\n\twidth: 100%;\n\tpadding: 15px;\n}\n\n.text-center {\n\ttext-align: center\n}\n\n\n/* DROPZONE */\n\n.dz-message-style {\n\tborder-radius: 9px 9px 9px 9px;\n\t-moz-border-radius: 9px 9px 9px 9px;\n\t-webkit-border-radius: 9px 9px 9px 9px;\n\tborder: 2px dashed #000000;\n\theight: 300px;\n\t/*height: 100%;*/\n\twidth: 95%;\n\tdisplay: block;\n\tmargin-left: auto;\n\tmargin-right: auto\n}\n\n.dz-message-text-style {\n\ttext-align: center;\n}\n\n\n/* Slideshow style */\n.splash {\n    position: fixed;\n    background: rgba(0,0,0,0.85);\n    width: 100%;\n    height: 100%;\n    top: 0;\n    left: 0;\n    z-index: 500;\n    opacity: 0;\n    visibility: hidden;\n    overflow: hidden;\n    -webkit-perspective: 1000px;\n    perspective: 1000px;\n    transition: opacity 0.5s, visibility 0s 0.5s;\n    -webkit-transition: opacity 0.5s, visibility 0s 0.5s;\n}\n\n.splash-open.splash {\n    opacity: 1;\n    visibility: visible;\n    -webkit-transition: opacity 0.5s;\n    transition: opacity 0.5s;\n}\n\n.splash .splash-inner {\n    width: 100%;\n    height: 100%;\n    -webkit-transform-style: preserve-3d;\n    transform-style: preserve-3d;\n    -webkit-transform: translate3d(0,0,150px);\n    transform: translate3d(0,0,150px);\n    -webkit-transition: -webkit-transform 0.5s;\n    transition: transform 0.5s;\n}\n\n\n.splash-open.splash .splash-inner {\n    -webkit-transform: translate3d(0,0,0);\n    transform: translate3d(0,0,0);\n}\n\n.splash .splash-content {\n    width: 660px;\n    height: 350px;\n    position: absolute;\n    top: 40%;\n    left: 50%;\n    margin: -175px 0 0 -330px;\n    color: #fff;\n    font-size: 18px;\n}\n\n.splash-content h1 {\n    color: #fff;\n    margin-bottom: 40px;\n}\n\n\n.btn-outline {\n    margin-top: 40px;\n    color: #fff;\n    border: 2px solid #fff;\n    border-radius: 2px;\n    background-color: transparent;\n    width: 250px;\n    font-weight: 300;\n}\n.btn-outline:hover {\n    color: #fff;\n    background-color: rgba(255, 255, 255, 0.05);\n}\n\n\n\n\n/*----------------------------------------------------------------------------------------\n\t\t\t\t\t\t\t\t\t\t\tCOMMENTS\n----------------------------------------------------------------------------------------*/\n\n\n\n.comments { padding: 80px 0 0 0; }\n\n.comments li { padding: 0; }\n\n.comment-list .children { margin-left: 80px; }\n\n.comment-body {\n\tborder-top: 1px solid #eee;\n\tposition: relative;\n\tpadding: 40px 0 40px 80px;\n}\n\n.comment-body .photo {\n\tposition: absolute;\n\tleft: 0;\n\ttop: 40px;\n}\n\n.comment-body .photo img{\n\tborder-radius: 5px;\n\twidth:50px;\n\theight:auto;\n\t}\n\n.comment-body .comment-data {\n\tmargin-top: 10px;\n\tfont-size: 14px;\n}\n\n.comment-body .comment-data .author {\n\tcolor: #444;\n\tfont-weight: bold;\n\tpadding-right: 20px;\n\tfont-size: 14px;\n}\n\n.comment-body .comment-data .date {\n\tcolor: #ccc;\n\tpadding-right: 20px;\n}\n\n.comment-body .comment-data a { color: black; }\n\n\n.comments .comment-respond { margin: 0 0 0 0; }\n\n.comments #comment_form { border: 1px solid #eee; }\n\n.comments #comment_form:after {\n\tcontent: '';\n\tdisplay: block;\n\tclear: both;\n}\n\n.comments #comment_form > div { padding: 0; }\n\n#comment_form .btn_send {\n\twidth: 100%;\n\tbackground: #eee;\n\tfont-weight:bold;\n\tcolor:#777;\n\tmargin:0;\n}\n\n#comment_form .form-group { border-bottom: 1px solid #eee; }\n\n#comment_form .form-group label.error,\n#comment_form .form-group label.valid {\n\tdisplay: block;\n\tmargin: 0;\n\tfont-size: 12px;\n\tposition: relative;\n\tpadding: 5px 20px;\n\tfont-weight: 300;\n\tcolor: #fff;\n\ttext-align: left;\n}\n\n#comment_form .form-group label.error { background: #d12525; }\n\n#comment_form .form-group label.error:before {\n\tposition: absolute;\n\tleft: 20px;\n\ttop: -7px;\n\tcontent: \"\";\n\tdisplay: block;\n\twidth: 0;\n\theight: 0;\n\tborder-style: solid;\n\tborder-width: 0 7px 7px 7px;\n\tborder-color: transparent transparent #d12525 transparent;\n}\n\n#comment_form .form-group label.valid { padding: 0; }\n\n#comment_form .form-group label.valid:before { display: none; }\n\n@media (max-width: 992px) {\n\n.comments{ padding:60px 0 0 0;}\n\n.comments .form-control{ text-align:center;}\n\n.comments .comment-respond{margin:40px 0 0 0;}\n\n.comment-body { padding: 30px 0; }\n\n.comment-list .children { margin-left: 0; }\n\n.comment-body .photo {\n\tposition: relative;\n\tleft: auto;\n\ttop: auto;\n\tmargin: 0 auto 20px auto;\n}\n\n.comment-body .comment-data .author {\n\tdisplay: block;\n\tpadding: 0;\n}\n\n.comment-body .comment-data .date {\n\tdisplay: block;\n\tpadding: 0;\n}\n}\n\n.fill-screen img {\n\twidth:100%;\n}", ""]);
+
+// exports
+
+
+/***/ }),
+/* 18 */
+/***/ (function(module, exports, __webpack_require__) {
+
+/* WEBPACK VAR INJECTION */(function(Buffer) {/*
+	MIT License http://www.opensource.org/licenses/mit-license.php
+	Author Tobias Koppers @sokra
+*/
+// css base code, injected by the css-loader
+module.exports = function(useSourceMap) {
+	var list = [];
+
+	// return the list of modules as css string
+	list.toString = function toString() {
+		return this.map(function (item) {
+			var content = cssWithMappingToString(item, useSourceMap);
+			if(item[2]) {
+				return "@media " + item[2] + "{" + content + "}";
+			} else {
+				return content;
+			}
+		}).join("");
+	};
+
+	// import a list of modules into the list
+	list.i = function(modules, mediaQuery) {
+		if(typeof modules === "string")
+			modules = [[null, modules, ""]];
+		var alreadyImportedModules = {};
+		for(var i = 0; i < this.length; i++) {
+			var id = this[i][0];
+			if(typeof id === "number")
+				alreadyImportedModules[id] = true;
+		}
+		for(i = 0; i < modules.length; i++) {
+			var item = modules[i];
+			// skip already imported module
+			// this implementation is not 100% perfect for weird media query combinations
+			//  when a module is imported multiple times with different media queries.
+			//  I hope this will never occur (Hey this way we have smaller bundles)
+			if(typeof item[0] !== "number" || !alreadyImportedModules[item[0]]) {
+				if(mediaQuery && !item[2]) {
+					item[2] = mediaQuery;
+				} else if(mediaQuery) {
+					item[2] = "(" + item[2] + ") and (" + mediaQuery + ")";
+				}
+				list.push(item);
+			}
+		}
+	};
+	return list;
+};
+
+function cssWithMappingToString(item, useSourceMap) {
+	var content = item[1] || '';
+	var cssMapping = item[3];
+	if (!cssMapping) {
+		return content;
+	}
+
+	if (useSourceMap) {
+		var sourceMapping = toComment(cssMapping);
+		var sourceURLs = cssMapping.sources.map(function (source) {
+			return '/*# sourceURL=' + cssMapping.sourceRoot + source + ' */'
+		});
+
+		return [content].concat(sourceURLs).concat([sourceMapping]).join('\n');
+	}
+
+	return [content].join('\n');
+}
+
+// Adapted from convert-source-map (MIT)
+function toComment(sourceMap) {
+  var base64 = new Buffer(JSON.stringify(sourceMap)).toString('base64');
+  var data = 'sourceMappingURL=data:application/json;charset=utf-8;base64,' + base64;
+
+  return '/*# ' + data + ' */';
+}
+
+/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(16).Buffer))
+
+/***/ }),
+/* 19 */
+/***/ (function(module, exports) {
+
+module.exports = "<div class=\"row\">\n<div class=\"push feed\">\n\t\t\t\t<!-- HEADER -->\n\t\t\t\t<div class=\"feed-header\">\n\t\t\t\t\t\n\t\t\t\t\t\t\t\t\t<!-- AUTHOR -->\n\t\t\t\t\t<div class=\"feed-author\" ng-if=\"feed.post_type_id > 1\">\n\t\t\t\t\t\t<ul class=\"list-unstyled\" >\n\t\t\t\t\t\t\t<!-- AUTHOR IMAGE -->\n\t\t\t\t\t\t\t<li>\n\t\t\t\t\t\t\t\t<img fallback-src=\"{{'/img/avatar.png'}}\" ng-src=\"{{feed.authorImage ? feed.authorImage : '/img/avatar.png'}}\">\n\t\t\t\t\t\t\t</li>\n\t\t\t\t\t\t\n\t\t\t\t\t\t\t<!-- END AUTHOR IMAGE -->\n\n\t\t\t\t\t\t\t<!-- AUTHOR REFERENCES -->\n\t\t\t\t\t\t\t<li>\n\t\t\t\t\t\t\t\t<strong style=\"margin-top:15px;\"><a ui-sref=\"vicigo.profile({profileId:feed.authorId})\">{{feed.authorName}}</a></strong>\n\t\t\t\t\t\t\t</li>\n\t\t\t\t\t\t\t<!-- END AUTHOR REFERENCES -->\n\t\t\t\t\t\t\t<li class=\"feed-date\">\n\t\t\t\t\t\t\t\t\t\t<span class=\"text-muted\"><small>{{ feed.created_at }}</small></span>\n\t\t\t\t\t\t\t</li>\n\t\t\t\t\t\t</ul>\n\t\t\t\t\t</div>\n\t\t\t\t\t<!-- END AUTHOR -->\n\t\t\t\t\t\n\t\t\t\t</div>\n\t\t\t\t<!-- END HEADER -->\n\t\t\n\n\n\t\t\t\t\n\t\t\t\t\n\t\t\t\t\n\t\t\t\t<div ng-class=\"{ 'post-feed-body' : feed.post_type_id == 2 || feed.post_type_id == 3, 'image-feed-body' : feed.post_type_id == 4 || feed.post_type_id == 5 }\">\n\t\t\t\t\t<!-- TITLE -->\n\t\t\t\t\t<div class=\"feed-title\" ng-if=\"hasTitle(feed.post_type_id)\">\n\t\t\t\t\t\t<h3><strong><a ng-href=\"{{feed.link}}\">{{feed.title}}</a></strong></h3>\n\t\t\t\t\t</div>\n\t\t\t\t\t<!-- END TITLE -->\n\n\t\t\t\t\t\n\t\t\t\t\t<!-- IMAGE BODY href=\"/post/{{feed.id}}\" -->\n\t\t\t\t\t<div class=\"feed-body\" ng-click=\"goToPost(feed)\">\n\t\t\t\t\t\t\n\t\t\t\t\t\t<lazy-img ng-if=\"feed.image_url\" class=\"lazy\" ng-src=\"{{trustSrc(feed.image_url)}}\" alt=\"image\"></lazy-img>\n\t\t\t\t\t\t<p ng-if=\"feed.body && feed.post_type_id !== 4 && feed.post_type_id !== 5\" class=\"feed-article\">\n\t\t\t\t\t\t\t\t{{displayFeedBody(feed.body)}}\n\t\t\t\t\t\t</p>\n\t\t\t\t\t\t\n\t\t\t\t\t</div>\n\t\t\t\t\t<!-- END POST  BODY -->\n\t\t\t\t\t\n\t\t\t\t\n\n\t\t\t\t\t<!----------------------- POST BODY ENDS ---------------------------------->\n\t\t\t\t</div>\n\t\t\t\t\n\t\t\t<!-- footer -->\t\n\t\t\t<div class=\"feed-footer\">\n\t\t\t\n\t\t\t<div class=\"row hashtags\">\n\t\t\t\t\t\t<div class=\"col-xs-12\">\n\t\t\t\t\t\t\t<div class=\"padding-left:5px;padding-right:5px;\">\n\t\t\t\t\t\t\t\t<a class=\"pull-left hashtag\" ng-repeat=\"hashtag in feed.hashtags\" ui-sref=\"vicigo.hashtag({ hashtag : hashtag.hashtag})\">#{{ ::hashtag.hashtag}}</a>\n\t\t\t\t\t\t\t</div>\n\t\t\t\t\t\t\t\n\t\t\t\t\t\t</div>\n\t\t\t</div>\n\t\t\t\t\n\t\t\t\t\n\t\t\t\t<div style=\"row\">\n\t\t\t\t\t<div class=\"col-xs-12\" >\n\t\t\t<ul class=\"pointer pull-left list-inline list-unstyled list\" ng-click=\"showUpvotes(feed)\" >\n\t\t\t\t\t\t\t<li>\n\t\t\t\t\t\t\t\t<span class=\"btn default\">\n\t\t\t\t\t\t\t\t\t<i class=\"fa fa-heart-o\"></i>\n\t\t\t\t\t\t\t\t\t<span> {{ ::feed.upvotes_count}}</span>\n\t\t\t\t\t\t\t\t</span>\n\t\t\t\t\t\t\t</li>\n\n\t\t\t\t\t\t\t<li>\n\t\t\t\t\t\t\t\t<span class=\"btn default\">\n\t\t\t\t\t\t\t\t\t<i class=\"fa fa-comment-o\"></i>\n\t\t\t\t\t\t\t\t\t<span> {{ ::feed.comment_count}}</span>\n\t\t\t\t\t\t\t\t</span>\n\t\t\t\t\t\t\t</li>\n\t\t\t\t\t\t\t\t<li>\n\n\t\t\t\t\t\t\t\t<span class=\"btn default\">\n\t\t\t\t\t\t\t\t\t<i class=\"fa fa-eye\"></i>\n\t\t\t\t\t\t\t\t\t<span> {{ ::feed.views_count}}</span>\n\t\t\t\t\t\t\t\t</span>\n\t\t\t\t\t\t\t</li>\n\n\t\t\t\t\t\t</ul>\n\t\t\t\t</div>\n\t\t\t\t\t\t\n\t\t\t\t\t</div>\n\t\t\t\n\t\t\t\t\n\t\t\t\t\t<!-- OPTIONS -->\n\t\t\t\t\t<div class=\"row feed-actions\" style=\"padding-bottom:5px;\">\n\t\t\t\t\t\t\t<div class=\"col-xs-12\">\n\t\t\t\t\t\t\t\t<form ng-submit=\"postComment(feed.id,feed.commentDraft,$index)\">\n\t\t\t\t\t\t<ul class=\" list-unstyled list-inline list\" >\n\t\t\t\t\t\t\t<li style=\"width:50px;\">\n\t\t\t\t\t\t\t\t<span ng-click=\"upvote(feed.id, $index)\" style=\"cursor:pointer;\">\n\t\t\t\t\t\t\t\t\t<i ng-if=\"feed.alreadyUpvoted\" class=\"upvoted rate-btn fa fa-heart\"></i>\n\t\t\t\t\t\t\t\t\t<i ng-if=\"!feed.alreadyUpvoted\" class=\"rate-btn fa fa-heart-o fa-2x\"></i>\n\t\t\t\t\t\t\t\t</span>\n\t\t\t\t\t\t\t</li>\n\n\t\t\t\t\t\t\t<li style=\"width:500px;\">\n\t\t\t\t\t\t\t\t\t\t\t<input style=\"width:500px;\" ng-model=\"feed.commentDraft\" placeholder=\"Write your comment ...\">\n\t\t\t\t\t\t\t</li>\n\t\t\t\t\t\n\t\t\t\t\t\t\t<li style=\"width:50px;\" uib-dropdown on-toggle=\"toggled(open)\">\n\t\t\t\t\n      <a href=\"#\" uib-dropdown-toggle ng-disabled=\"disabled\">\n\t\t\t\t\t<i class=\"fa fa-ellipsis-h\"></i>\n      </a>\n      <ul uib-dropdown-menu class=\"uib-dropdown-menu header_menu list-unstyled\" role=\"menu\" aria-labelledby=\"single-button\">\n        <li  ng-if=\"user.id==feed.authorId && (feed.post_type_id == 4 || feed.post_type_id == 5)\"><a href=\"#\"  ng-click=\"editPhoto(feed)\">Edit</a>\n\t\t\t\t\t\t\t</li>\n\t\t\t\t\t\t\t<li ng-if=\"user.id==feed.authorId && (feed.post_type_id == 3 || feed.post_type_id == 2)\"><a href=\"#\"  target=\"_self\" ng-href=\"/edit/{{feed.id}}\">Edit</a>\n\t\t\t\t\t\t\t</li>\n\t\t\t\t\t\t\t<li ng-if=\"user.id==feed.authorId\"><a href=\"#\"  ng-click=\"removePost(feed,false,$index)\">Remove</a>\n\t\t\t\t\t\t\t</li>\n\t\t\t\t\t\t\t<li><a href=\"#\" >Share</a>\n\t\t\t\t\t\t\t</li>\n\t\t\t\t\t\t\t<li><a href=\"#\" >Report</a>\n\t\t\t\t\t\t\t</li>\n      </ul>\n\n\t\t\t\t\t\t\t</li>\n\n\t\t\t\t\t\t\t\n\n\n\t\t\t\t\t\t</ul>\n\t\t\t\t\t</form>\n\t\t\t\t\n\t\t\t\t\t</div>\n\t\t\t\t\t</div>\n\t\t\t\t\t<!-- END OPTIONS -->\n\n\n\n\n\t\t\t\t\t<!--COMMENTS-->\n\t\t\t\t\t<div class=\"row\">\n\t\t\t\t\t\t<div class=\"col-xs-12\">\n\t\t\t\t\t\t<div style=\"padding:5px;\">\n\t\t\t\t\t\t\t\n\t\t\t\t\t\t\t\n\t\t\t\t\t\t\t\n\t\t\t\t\t\t<a ng-if=\"feed.comment_count&&!feed.showComments\" class=\"text-muted\" ng-click=\"showComments(feed.id,$index)\">Show Comments</a>\n\t\t\t\t\n    <table ng-if=\"feed.comments.length\" style=\"padding:10px;\">\n        <tbody>\t\n                    <tr style=\"width:100%;\" ng-repeat=\"comment in feed.comments\">\n                            <td style=\"width:100%; float:left;font-size:13px;\">\n                                <p style=\"float:left\">\n                                        <strong > <a href=\"/profile/{{comment.authorId}}\" >{{comment.authorName}} </a></strong> {{comment.body}} <small ng-if=\"user.id==comment.authorId\"> <a href=\"#\" ng-click=\"deleteComment(feed.id,comment.comment_id,$parent.$index,$index)\">remove</a> </small>\n                                </p>\n                                \n                            </td>\t\n                        </tr>\n        </tbody>\t\n    </table>\t\n\t\t\t\t\t\t\t\n\t\t\t</div>\t\n\t\t\t\t\t</div>\n\n\t\t\t\t\t</div>\n      </div>\n\t\t\t<!-- end footer-->\n\t\t\t</div>\n</div>";
 
 /***/ }),
 /* 20 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-exports.byteLength = byteLength
-exports.toByteArray = toByteArray
-exports.fromByteArray = fromByteArray
-
-var lookup = []
-var revLookup = []
-var Arr = typeof Uint8Array !== 'undefined' ? Uint8Array : Array
-
-var code = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
-for (var i = 0, len = code.length; i < len; ++i) {
-  lookup[i] = code[i]
-  revLookup[code.charCodeAt(i)] = i
-}
-
-revLookup['-'.charCodeAt(0)] = 62
-revLookup['_'.charCodeAt(0)] = 63
-
-function placeHoldersCount (b64) {
-  var len = b64.length
-  if (len % 4 > 0) {
-    throw new Error('Invalid string. Length must be a multiple of 4')
-  }
-
-  // the number of equal signs (place holders)
-  // if there are two placeholders, than the two characters before it
-  // represent one byte
-  // if there is only one, then the three characters before it represent 2 bytes
-  // this is just a cheap hack to not do indexOf twice
-  return b64[len - 2] === '=' ? 2 : b64[len - 1] === '=' ? 1 : 0
-}
-
-function byteLength (b64) {
-  // base64 is 4/3 + up to two characters of the original data
-  return b64.length * 3 / 4 - placeHoldersCount(b64)
-}
-
-function toByteArray (b64) {
-  var i, j, l, tmp, placeHolders, arr
-  var len = b64.length
-  placeHolders = placeHoldersCount(b64)
-
-  arr = new Arr(len * 3 / 4 - placeHolders)
-
-  // if there are placeholders, only get up to the last complete 4 chars
-  l = placeHolders > 0 ? len - 4 : len
-
-  var L = 0
-
-  for (i = 0, j = 0; i < l; i += 4, j += 3) {
-    tmp = (revLookup[b64.charCodeAt(i)] << 18) | (revLookup[b64.charCodeAt(i + 1)] << 12) | (revLookup[b64.charCodeAt(i + 2)] << 6) | revLookup[b64.charCodeAt(i + 3)]
-    arr[L++] = (tmp >> 16) & 0xFF
-    arr[L++] = (tmp >> 8) & 0xFF
-    arr[L++] = tmp & 0xFF
-  }
-
-  if (placeHolders === 2) {
-    tmp = (revLookup[b64.charCodeAt(i)] << 2) | (revLookup[b64.charCodeAt(i + 1)] >> 4)
-    arr[L++] = tmp & 0xFF
-  } else if (placeHolders === 1) {
-    tmp = (revLookup[b64.charCodeAt(i)] << 10) | (revLookup[b64.charCodeAt(i + 1)] << 4) | (revLookup[b64.charCodeAt(i + 2)] >> 2)
-    arr[L++] = (tmp >> 8) & 0xFF
-    arr[L++] = tmp & 0xFF
-  }
-
-  return arr
-}
-
-function tripletToBase64 (num) {
-  return lookup[num >> 18 & 0x3F] + lookup[num >> 12 & 0x3F] + lookup[num >> 6 & 0x3F] + lookup[num & 0x3F]
-}
-
-function encodeChunk (uint8, start, end) {
-  var tmp
-  var output = []
-  for (var i = start; i < end; i += 3) {
-    tmp = (uint8[i] << 16) + (uint8[i + 1] << 8) + (uint8[i + 2])
-    output.push(tripletToBase64(tmp))
-  }
-  return output.join('')
-}
-
-function fromByteArray (uint8) {
-  var tmp
-  var len = uint8.length
-  var extraBytes = len % 3 // if we have 1 byte left, pad 2 bytes
-  var output = ''
-  var parts = []
-  var maxChunkLength = 16383 // must be multiple of 3
-
-  // go through the array every three bytes, we'll deal with trailing stuff later
-  for (var i = 0, len2 = len - extraBytes; i < len2; i += maxChunkLength) {
-    parts.push(encodeChunk(uint8, i, (i + maxChunkLength) > len2 ? len2 : (i + maxChunkLength)))
-  }
-
-  // pad the end with zeros, but make sure to not forget the extra bytes
-  if (extraBytes === 1) {
-    tmp = uint8[len - 1]
-    output += lookup[tmp >> 2]
-    output += lookup[(tmp << 4) & 0x3F]
-    output += '=='
-  } else if (extraBytes === 2) {
-    tmp = (uint8[len - 2] << 8) + (uint8[len - 1])
-    output += lookup[tmp >> 10]
-    output += lookup[(tmp >> 4) & 0x3F]
-    output += lookup[(tmp << 2) & 0x3F]
-    output += '='
-  }
-
-  parts.push(output)
-
-  return parts.join('')
-}
-
-
-/***/ }),
-/* 21 */
 /***/ (function(module, exports) {
 
 exports.read = function (buffer, offset, isLE, mLen, nBytes) {
@@ -18587,7 +19628,7 @@ exports.write = function (buffer, value, offset, isLE, mLen, nBytes) {
 
 
 /***/ }),
-/* 22 */
+/* 21 */
 /***/ (function(module, exports) {
 
 var toString = {}.toString;
@@ -18598,1092 +19639,377 @@ module.exports = Array.isArray || function (arr) {
 
 
 /***/ }),
-/* 23 */
+/* 22 */
 /***/ (function(module, exports, __webpack_require__) {
 
-"use strict";
-
-
-__webpack_require__(12);
-
-__webpack_require__(10);
-
-var _angularUiRouter = __webpack_require__(0);
-
-var _angularUiRouter2 = _interopRequireDefault(_angularUiRouter);
-
-var _ngInfiniteScroll = __webpack_require__(11);
-
-var _ngInfiniteScroll2 = _interopRequireDefault(_ngInfiniteScroll);
-
-var _ProfileCtrl = __webpack_require__(8);
-
-var _ProfileCtrl2 = _interopRequireDefault(_ProfileCtrl);
-
-var _FeedsCtrl = __webpack_require__(7);
-
-var _FeedsCtrl2 = _interopRequireDefault(_FeedsCtrl);
-
-var _WelcomeCtrl = __webpack_require__(9);
-
-var _WelcomeCtrl2 = _interopRequireDefault(_WelcomeCtrl);
-
-var _DraftsCtrl = __webpack_require__(5);
-
-var _DraftsCtrl2 = _interopRequireDefault(_DraftsCtrl);
-
-var _EditorCtrl = __webpack_require__(6);
-
-var _EditorCtrl2 = _interopRequireDefault(_EditorCtrl);
-
-var _routing = __webpack_require__(3);
-
-var _routing2 = _interopRequireDefault(_routing);
-
-var _http = __webpack_require__(2);
-
-var _http2 = _interopRequireDefault(_http);
-
-var _state = __webpack_require__(4);
-
-var _state2 = _interopRequireDefault(_state);
-
-var _component = __webpack_require__(1);
-
-var _component2 = _interopRequireDefault(_component);
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-// import angular from 'angular';
-var imageDropzone, profilePicDropzone, hashbookBGDropzone;
-var vicigoApp = angular.module("hashtag-app", [_angularUiRouter2.default, 'ui.bootstrap', _ngInfiniteScroll2.default, "dcbImgFallback", "xeditable", "angular-inview", '720kb.socialshare', 'ngDialog', "angular.lazyimg", "ViciAuth"]).constant("API_URL", "").run(function (ngDialog) {
-	(function (d, s, id) {
-		var js,
-		    fjs = d.getElementsByTagName(s)[0];
-		if (d.getElementById(id)) {
-			return;
-		}
-		js = d.createElement(s);
-		js.id = id;
-		js.src = "//connect.facebook.net/en_US/sdk.js";
-		fjs.parentNode.insertBefore(js, fjs);
-	})(document, 'script', 'facebook-jssdk');
-
-	(function (i, s, o, g, r, a, m) {
-		i['GoogleAnalyticsObject'] = r;
-		i[r] = i[r] || function () {
-			(i[r].q = i[r].q || []).push(arguments);
-		}, i[r].l = 1 * new Date();
-		a = s.createElement(o), m = s.getElementsByTagName(o)[0];
-		a.async = 1;
-		a.src = g;
-		m.parentNode.insertBefore(a, m);
-	})(window, document, 'script', '//www.google-analytics.com/analytics.js', 'ga');
-	ga('create', 'UA-61717055-1', 'auto');
-}).run(function ($rootScope, $window, $location) {
-	$window.fbAsyncInit = function () {
-		FB.init({
-			appId: '1577245229193798',
-			status: true,
-			cookie: true,
-			xfbml: true,
-			version: 'v2.4'
-		});
-	};
-}).run(function ($rootScope, $window, $location) {
-	$rootScope.$on('$stateChangeSuccess', function (event) {
-		$window.ga('send', 'pageview', {
-			page: $location.url()
-		});
-	});
-}).run(function (ViciAuth, Uploader) {
-
-	Uploader.init();
-
-	profilePicDropzone = new Dropzone("#profilePicDropzone", {
-		url: "/upload/image?isProfileAvatar=true",
-		maxFiles: 10,
-		maxfilesexceeded: function maxfilesexceeded(file) {
-			this.removeAllFiles();
-			this.addFile(file);
-		},
-		thumbnailWidth: null,
-		previewTemplate: document.querySelector('#preview-template').innerHTML
-	}).on("sending", function (file, xhr) {
-		xhr.setRequestHeader("X-Auth-Token", ViciAuth.getAuthToken());
-	}).on("success", function (file, response) {
-		$('#uploadProfilePicModal').modal('hide');
-		document.getElementById("profilePic").src = response.link;
-	});
-
-	$(".tags-area").tagit({
-		placeholderText: "tag it!"
-	});
-}).run(function ($rootScope, $state, $timeout, $http) {
-	var fetchNotifs = function fetchNotifs() {
-		$http.get("/api/notifications/status").then(function (response) {
-			$rootScope.userStatus = response.data;
-			return;
-		});
-	};
-
-	$rootScope.$on("notAuthenticated", function () {
-		var WhiteListed = ["starter.welcome", "vicigo.post", "vicigo.postByAlias", "vicigo.hashbook", "vicigo.hashtag"];
-		if (WhiteListed.indexOf($state.current.name) == -1) {
-			$state.go("starter.welcome");
-		}
-	});
-}).run(function (editableOptions) {
-	editableOptions.theme = 'bs3';
-}).config(_routing2.default).config(_http2.default).config(_state2.default).service('MetaService', function () {
-	var metaDefault = {
-		title: "#vicigo",
-		author: 'Vicigo',
-		description: 'explore the world of hashtags - #vicigo makes it easy to browse the most interesting information, get your questions answered and share your own knowledge.',
-		robots: 'index, follow',
-		keywords: 'vicigo,viciqloud,hashtag,information,question,answer,social media,share,blog,post,technology',
-		ogTitle: "#vicigo",
-		ogSite_name: "Vicigo",
-		ogUrl: "https://vicigo.com/",
-		ogDescription: "explore the world of hashtags - #vicigo makes it easy to browse the most interesting information, get your questions answered and share your own knowledge.",
-		fbAppId: 1577245229193798,
-		ogType: "website",
-		ogLocale: "locale",
-		articlePublisher: "https://www.facebook.com/vvicigo",
-		ogImage: "https://www.vicigo.com/img/fb_post.png",
-		twitterTitle: "#vicigo",
-		twitterUrl: "https://www.vicigo.com/",
-		twitterDescription: "explore the world of hashtags"
-	};
-	var meta = metaDefault;
-
-	var set = function set(key, value) {
-		meta[key] = value;
-	};
-
-	return {
-		setDefault: function setDefault() {
-			meta = metaDefault;
-			return true;
-		},
-
-		setForPost: function setForPost(post) {
-			set("author", post.author_name);
-			var desc = post.hashtags.map(function (item) {
-				return item.hashtag;
-			}).join(", ");
-			if (post.post_type_id == 4 || post.post_type_id == 5) {
-				set("title", "Image on Vicigo by @" + post.author_name + " | Vicigo");
-				set("ogTitle", "Image on Vicigo by @" + post.author_name);
-				set("twitterTitle", "Image on Vicigo by @" + post.author_name);
-				set("ogUrl", "https://vicigo.com/post/" + post.post_id);
-
-				set("description", desc);
-				set("keywords", desc);
-				set("ogDescription", desc);
-				set("twitterDescription", desc);
-			} else {
-				set("title", post.post_title + " by @" + post.author_name + " |  Vicigo");
-				set("ogTitle", post.post_title + " by @" + post.author_name);
-				set("twitterTitle", post.post_title + " by @" + post.author_name);
-
-				set("description", desc);
-				set("keywords", desc);
-				set("ogDescription", desc);
-				set("twitterDescription", desc);
-			}
-
-			set("ogImage", post.post_image_url ? post.post_image_url : metaDefault.ogImage);
-			return true;
-		},
-
-		setForHashtag: function setForHashtag(hashtag) {
-			meta = metaDefault;
-			var title = "#" + hashtag + " | Vicigo photos and articles";
-			var desc = "Photos, posts and articles with the hashtag '" + hashtag + "' on Vicigo.";
-			set("ogUrl", "https://vicigo.com/hashtag/" + hashtag);
-			set("title", title);
-			set("ogTitle", title);
-			set("twitterTitle", title);
-
-			set("description", desc);
-			set("keywords", desc);
-			set("ogDescription", desc);
-			set("twitterDescription", desc);
-			return true;
-		},
-
-		setForProfile: function setForProfile(profile) {
-			meta = metaDefault;
-			var keywords = profile.hashtags.map(function (item) {
-				return item.hashtag;
-			}).join(", ");
-			var title = "@" + profile.name;
-			title += profile.title ? ", " + profile.title : "";
-			title += "  | Vicigo";
-
-			var desc = "The newest photos and articles from @" + profile.name + ".";
-			desc += profile.title ? " " + profile.title : "";
-			desc += " " + keywords;
-
-			set("title", title);
-			set("ogTitle", title);
-			set("twitterTitle", title);
-			set("ogUrl", "https://vicigo.com/profile/" + profile.user_id);
-			set("description", desc);
-			set("keywords", keywords);
-			set("ogDescription", desc);
-			set("twitterDescription", desc);
-			return true;
-		},
-
-		display: function display(key) {
-			return meta[key];
-		}
-	};
-}).service("Uploader", function ($http, ViciAuth) {
-	var PATHS = {
-		IMAGE: "/upload/image"
-	};
-
-	var changeProgress = function changeProgress(progressValue) {
-		document.getElementById("imageUploadProgressBar").setAttribute("aria-valuenow", progressValue);
-		document.getElementById("imageUploadProgressBar").style.width = progressValue + "%";
-	};
-
-	var init = function init() {
-		imageDropzone = new Dropzone("body", {
-			url: PATHS.IMAGE,
-			maxFiles: 10,
-			thumbnailWidth: null,
-			previewTemplate: document.querySelector('#preview-template').innerHTML,
-			clickable: '#imageDropzone'
-		}).on("addedfile", function (file) {
-			$('#uploadImageModal').modal('show');
-			$('#uploadedImage').attr('src', null);
-			$(".tags-area").tagit("removeAll");
-			//imageDropzone.removeAllFiles(true);
-			$(".dz-message").removeClass("hidden");
-			$("#uploadedImage").addClass("hidden");
-		}).on("sending", function (file, xhr) {
-			changeProgress(0);
-			$("#imageUploadProgress").removeClass("hidden");
-			xhr.setRequestHeader("X-Auth-Token", ViciAuth.getAuthToken());
-		}).on("uploadprogress", function (file, progress) {
-			changeProgress(progress);
-		}).on("success", function (file, response) {
-			changeProgress(100);
-			setTimeout(function () {
-				$("#imageUploadProgress").addClass("hidden");
-			}, 500);
-
-			document.getElementById("uploadedImage").src = response.link;
-			$("#uploadedImagePostId").val(response.postId);
-			document.getElementById("publishPicturePostBtn").disabled = false;
-			$(".dz-message").addClass("hidden");
-			$("#uploadedImage").removeClass("hidden");
-		});
-	};
-
-	return {
-		init: init
-	};
-}).service("CommentService", function ($http) {
-	var deleteComment = function deleteComment(postId, commentId) {
-		$http.delete("/api/post/" + postId + "/comments/" + commentId).then(function (response) {});
-	};
-
-	var getComments = function getComments(postId, callback) {
-		$http.get("/api/post/" + postId + "/comments").then(function (response) {
-			callback(response.data);
-		});
-	};
-
-	var postComment = function postComment(postId, commentBody, callback) {
-		if (!postId || !commentBody) {
-			return;
-		}
-		var comment = {
-			postId: postId,
-			body: commentBody
+/*
+	MIT License http://www.opensource.org/licenses/mit-license.php
+	Author Tobias Koppers @sokra
+*/
+var stylesInDom = {},
+	memoize = function(fn) {
+		var memo;
+		return function () {
+			if (typeof memo === "undefined") memo = fn.apply(this, arguments);
+			return memo;
 		};
-		$http.post("/api/post/" + postId + "/comments/", comment).then(function (response) {
-			callback(response.data);
-		});
-	};
+	},
+	isOldIE = memoize(function() {
+		return /msie [6-9]\b/.test(self.navigator.userAgent.toLowerCase());
+	}),
+	getHeadElement = memoize(function () {
+		return document.head || document.getElementsByTagName("head")[0];
+	}),
+	singletonElement = null,
+	singletonCounter = 0,
+	styleElementsInsertedAtTop = [],
+	fixUrls = __webpack_require__(23);
 
-	return {
-		postComment: postComment,
-		getComments: getComments,
-		deleteComment: deleteComment
-	};
-}).service("HashbookService", function ($http, API_URL) {
-	var getHashbooks = function getHashbooks(profileId, params, callback) {
-		$http({
-			url: API_URL + "/api/profile/" + profileId + "/hashbooks",
-			method: "GET",
-			params: params
-		}).then(function (response) {
-			callback(response.data);
-		});
-	};
-	return {
-		getHashbooks: getHashbooks
-	};
-}).service("RelsService", function ($http, API_URL) {
-
-	var followProfile = function followProfile(profileId) {
-		$http.post(API_URL + "/api/profile/" + profileId + "/follow/").then(function (response) {});
-	};
-	var unfollowProfile = function unfollowProfile(profileId) {
-		$http.post(API_URL + "/api/profile/" + profileId + "/unfollow/").then(function (response) {});
-	};
-
-	var showFollowers = function showFollowers(profileId, callback) {
-		$http.get(API_URL + "/api/profile/" + profileId + "/followers").then(function (response) {
-
-			callback(response.data);
-		});
-	};
-
-	var showFollowing = function showFollowing(profileId, callback) {
-		$http.get(API_URL + "/api/profile/" + profileId + "/following").then(function (response) {
-
-			callback(response.data);
-		});
-	};
-
-	var followHashtag = function followHashtag(hashtag) {
-		$http.get(API_URL + "/api/hashtag/" + hashtag + "/follow").then(function (response) {});
-	};
-
-	var unfollowHashtag = function unfollowHashtag(hashtag) {
-		$http.get(API_URL + "/api/hashtag/" + hashtag + "/unfollow").then(function (response) {});
-	};
-
-	var showFollowedHashtags = function showFollowedHashtags(profileId, callback) {
-		$http.get(API_URL + "/api/profile/" + profileId + "/hashtags/following").then(function (response) {
-
-			callback(response.data);
-		});
-	};
-
-	return {
-		followHashtag: followHashtag,
-		unfollowHashtag: unfollowHashtag,
-		followProfile: followProfile,
-		unfollowProfile: unfollowProfile,
-		showFollowing: showFollowing,
-		showFollowers: showFollowers,
-		showFollowedHashtags: showFollowedHashtags
-	};
-}).service("PostService", function ($http, $sce, API_URL) {
-
-	var removePost = function removePost(postId) {
-		return $http.delete(API_URL + "/api/post/" + postId);
-	};
-
-	var getById = function getById(postId, callback) {
-		return $http.get(API_URL + "/api/post/" + postId).then(function (response) {
-			callback(response.data);
-		});
-	};
-
-	var getByAlias = function getByAlias(username, alias, callback) {
-		return $http.get(API_URL + "/api/post/" + username + "/" + alias).then(function (response) {
-			callback(response.data);
-		});
-	};
-	var displayHTML = function displayHTML(html) {
-		return $sce.trustAsHtml(html);
-	};
-
-	var publishPic = function publishPic(postId, params, callback) {
-		$http.put(API_URL + "/api/post/image/publish", {
-			postId: postId,
-			tags: params.hashtags
-		}).then(function (response) {
-			callback(response.data);
-		});
-	};
-
-	var upvote = function upvote(postId) {
-		$http.post(API_URL + "/api/post/" + postId + "/upvote").then(function (response) {});
-	};
-	var downvote = function downvote(postId) {
-		$http.post(API_URL + "/api/post/" + postId + "/downvote").then(function (response) {});
-	};
-
-	var getUpvotes = function getUpvotes(postId, callback) {
-		$http.get(API_URL + "/api/post/" + postId + "/upvotes").then(function (response) {
-			callback(response.data);
-		});
-	};
-
-	var getViews = function getViews(postId, callback) {
-		$http.get(API_URL + "/api/post/" + postId + "/views").then(function (response) {
-			callback(response.data);
-		});
-	};
-
-	return {
-		getViews: getViews,
-		getUpvotes: getUpvotes,
-		publishPic: publishPic,
-		getById: getById,
-		getByAlias: getByAlias,
-		removePost: removePost,
-		upvote: upvote,
-		downvote: downvote,
-		displayHTML: displayHTML
-	};
-}).service("FeedService", function ($http, API_URL) {
-
-	var fetchFeeds = function fetchFeeds(query, callback) {
-		$http({
-			url: API_URL + "/api/feeds",
-			method: "GET",
-			params: {
-				hashtag: query.hashtag,
-				sort: query.sort,
-				filter: query.filter,
-				page: query.page ? query.page : 1,
-				profileId: query.profileId,
-				algorithm: query.algorithm
-			}
-		}).then(function (response) {
-
-			callback(response.data);
-		});
-	};
-
-	return {
-		fetchFeeds: fetchFeeds
-	};
-}).factory('AuthInterceptor', function ($rootScope, $q) {
-
-	if ($rootScope.activeCalls == undefined) {
-		$rootScope.activeCalls = 0;
+module.exports = function(list, options) {
+	if(typeof DEBUG !== "undefined" && DEBUG) {
+		if(typeof document !== "object") throw new Error("The style-loader cannot be used in a non-browser environment");
 	}
 
-	return {
-		request: function request(config) {
-			$rootScope.activeCalls += 1;
-			return config;
-		},
-		requestError: function requestError(rejection) {
-			$rootScope.activeCalls -= 1;
-			return $q.reject(rejection);
-		},
-		response: function response(_response) {
-			$rootScope.activeCalls -= 1;
-			return _response;
-		},
-		responseError: function responseError(response) {
-			$rootScope.activeCalls -= 1;
-			if (response.status == 400 && response.data) {
-				if (response.data.code == "POST_TOO_SHORT") {
-					toastr.info("Post is too short. The minimal amount of charackters is 300. Current: " + response.data.textLength);
-				}
+	options = options || {};
+	options.attrs = typeof options.attrs === "object" ? options.attrs : {};
+
+	// Force single-tag solution on IE6-9, which has a hard limit on the # of <style>
+	// tags it will allow on a page
+	if (typeof options.singleton === "undefined") options.singleton = isOldIE();
+
+	// By default, add <style> tags to the bottom of <head>.
+	if (typeof options.insertAt === "undefined") options.insertAt = "bottom";
+
+	var styles = listToStyles(list);
+	addStylesToDom(styles, options);
+
+	return function update(newList) {
+		var mayRemove = [];
+		for(var i = 0; i < styles.length; i++) {
+			var item = styles[i];
+			var domStyle = stylesInDom[item.id];
+			domStyle.refs--;
+			mayRemove.push(domStyle);
+		}
+		if(newList) {
+			var newStyles = listToStyles(newList);
+			addStylesToDom(newStyles, options);
+		}
+		for(var i = 0; i < mayRemove.length; i++) {
+			var domStyle = mayRemove[i];
+			if(domStyle.refs === 0) {
+				for(var j = 0; j < domStyle.parts.length; j++)
+					domStyle.parts[j]();
+				delete stylesInDom[domStyle.id];
 			}
+		}
+	};
+};
 
-			if (response.status == 401) {
-				$rootScope.$broadcast("notAuthenticated");
+function addStylesToDom(styles, options) {
+	for(var i = 0; i < styles.length; i++) {
+		var item = styles[i];
+		var domStyle = stylesInDom[item.id];
+		if(domStyle) {
+			domStyle.refs++;
+			for(var j = 0; j < domStyle.parts.length; j++) {
+				domStyle.parts[j](item.parts[j]);
 			}
-
-			return $q.reject(response);
-		}
-	};
-}).controller("appController", function ($scope, ViciAuth, PostService) {
-	$scope.AUTH_TOKEN = ViciAuth.getAuthToken();
-}).controller("chatController", function ($rootScope, $stateParams, $scope, $state, $http, $sce) {
-	$scope.message = "";
-	$scope.messages = [];
-	var socket = io();
-	alert($rootScope.user.id);
-	socket.emit('chatJoined', {
-		senderId: $rootScope.user.id,
-		receiverId: $stateParams.userId
-	});
-
-	socket.on('chatMessage', function (msg) {
-		$scope.messages.push(msg);
-	});
-
-	$scope.submitMessage = function (message) {
-		socket.emit('chatMessage', message);
-		$scope.messages.push(message);
-		$scope.message = "";
-
-		return false;
-	};
-}).controller("blogController", function ($rootScope, $stateParams, $scope, $state, $http, CommentService, PostService) {
-
-	$scope.blogSlug = $stateParams.blogSlug;
-	$scope.blog = {};
-
-	$scope.followHashbook = function (hashbook) {
-		if (!$rootScope.user.id) {
-
-			bootbox.prompt("<b>What is your email?</b>", function (result) {
-				$http.post("/api/hashbook/" + hashbook.blog_id + "/follow?medium=email&source=hashbook_page", {
-					email: result
-				});
-			});
+			for(; j < item.parts.length; j++) {
+				domStyle.parts.push(addStyle(item.parts[j], options));
+			}
 		} else {
-			$http.post("/api/hashbook/" + $scope.blog.blog_id + "/follow?medium=vicigo&source=hashbook_page").then(function (response) {
-				$scope.blog.blogFollowed = true;
-			});
+			var parts = [];
+			for(var j = 0; j < item.parts.length; j++) {
+				parts.push(addStyle(item.parts[j], options));
+			}
+			stylesInDom[item.id] = {id: item.id, refs: 1, parts: parts};
 		}
-	};
+	}
+}
 
-	$http.get("/api/hashbook/" + $scope.blogSlug).then(function (response) {
+function listToStyles(list) {
+	var styles = [];
+	var newStyles = {};
+	for(var i = 0; i < list.length; i++) {
+		var item = list[i];
+		var id = item[0];
+		var css = item[1];
+		var media = item[2];
+		var sourceMap = item[3];
+		var part = {css: css, media: media, sourceMap: sourceMap};
+		if(!newStyles[id])
+			styles.push(newStyles[id] = {id: id, parts: [part]});
+		else
+			newStyles[id].parts.push(part);
+	}
+	return styles;
+}
 
-		$scope.blog = response.data;
-	});
-
-	hashbookBGDropzone = new Dropzone("#hashbookBGDropzone", {
-		url: "/upload/image?isBackground=true&hashbookId=" + $scope.blog.blog_id,
-		maxFiles: 1,
-		thumbnailWidth: null,
-		previewTemplate: document.querySelector('#preview-template').innerHTML,
-		clickable: '#hashbookBGDropzone'
-	});
-	hashbookBGDropzone.on("success", function (file, response) {
-		$scope.blog.bg_picture = response.link;
-	});
-
-	/* repeting */
-	$scope.upvotePost = function (postId, index) {
-		if (!$rootScope.user.id) {
-			return $("#loginModal").modal();
-		}
-		$scope.blog.posts[index].upvotes_count = $scope.blog.posts[index].upvotes_count + 1;
-		$scope.blog.posts[index].alreadyUpvoted = true;
-		PostService.upvote(postId);
-	};
-
-	$scope.showComments = function (postId, index) {
-		if ($scope.feeds[index].showComments) {
-			$scope.feeds[index].showComments = false;
+function insertStyleElement(options, styleElement) {
+	var head = getHeadElement();
+	var lastStyleElementInsertedAtTop = styleElementsInsertedAtTop[styleElementsInsertedAtTop.length - 1];
+	if (options.insertAt === "top") {
+		if(!lastStyleElementInsertedAtTop) {
+			head.insertBefore(styleElement, head.firstChild);
+		} else if(lastStyleElementInsertedAtTop.nextSibling) {
+			head.insertBefore(styleElement, lastStyleElementInsertedAtTop.nextSibling);
 		} else {
-			CommentService.getComments(postId, function (rComments) {
-				$scope.feeds[index].showComments = true;
-				$scope.feeds[index].comments = rComments;
-			});
+			head.appendChild(styleElement);
 		}
-	};
-
-	$scope.postComment = function (postId, body, index) {
-
-		$scope.feeds[index].commentDraft = "";
-		CommentService.postComment(postId, body, function (rComment) {
-			$scope.feeds[index].showComments = true;
-			$scope.feeds[index].comments.unshift(rComment);
-		});
-	};
-
-	$scope.deleteComment = function (postId, commentId, feedIndex, commentIndex) {
-		$scope.feeds[feedIndex].comments.splice(commentIndex, 1);
-		CommentService.deleteComment(postId, commentId);
-	};
-
-	$scope.displayPostBody = PostService.displayHTML;
-}).controller("blogEditController", function ($rootScope, $stateParams, $scope, $state, $http, $sce) {
-	$(".tags-area").tagit();
-
-	$scope.blogSlug = $stateParams.blogSlug;
-	$scope.blog = {};
-
-	$http.get("/api/hashbook/" + $scope.blogSlug + "?fields=hashtags").then(function (response) {
-		$scope.blog = response.data;
-		var hashtags = $scope.blog._hashtags;
-		for (var index = 0; index < hashtags.length; index++) {
-			$(".tags-area").tagit("createTag", hashtags[index].hashtag);
-		}
-	});
-
-	$scope.updateBlog = function (data) {
-
-		data = {
-			title: data.blog_title,
-			desc: data.blog_desc,
-			hashtags: data.hashtags
-		};
-
-		$http.put("/api/hashbook/" + $scope.blogSlug, data).then(function (response) {
-
-			$state.go("hashbook.list", {
-				blogSlug: $scope.blogSlug
-			});
-		}, function (response) {});
-	};
-}).controller("blogNewController", function ($rootScope, $scope, $state, $http) {
-	$(".tags-area").tagit({
-		placeholderText: "place for hashtags!"
-	});
-
-	$scope.blog = {
-		slug: null,
-		title: null,
-		desc: null,
-		hashtags: null,
-		type: "blog"
-	};
-	$scope.createBlog = function (blog) {
-		if (!blog.title) {
-			return false;
-		}
-		if (!blog.hashtags) {
-			return false;
-		}
-
-		$http.post("/api/hashbook", blog).then(function (response) {
-
-			$scope.data = response.data;
-			$state.go("hashbook.list", {
-				blogSlug: $scope.blog.slug
-			});
-		});
-	};
-}).controller("importController", function ($rootScope, $scope, $state, $http) {
-	$(".tags-area").tagit({
-		placeholderText: "place for hashtags!"
-	});
-	$scope.data = [];
-	$scope.activePost = false;
-	$http.get("/api/external_services/fb/fetch_photos").then(function (response) {
-
-		$scope.data = response.data;
-	});
-
-	$scope.selectedImageUrl = "";
-	$scope.tagExternalPost = function (item) {
-		$('#uploadExternalImageModal').modal('show');
-		$scope.selectedImageUrl = item.source;
-		$scope.activePost = item;
-	};
-
-	$scope.publishExternalPost = function () {
-
-		var index = $scope.data.indexOf($scope.activePost);
-		$scope.data.splice(index, 1);
-
-		$('#uploadExternalImageModal').modal('hide');
-		var hashtags = $("#hashtagsForImportedPhoto").val();
-
-		var post = angular.copy($scope.activePost);
-
-		post.tags = hashtags;
-		$http.post("/api/post/image/from_link", post).then(function (response) {
-
-			$(".tags-area2").tagit("removeAll");
-		});
-	};
-}).controller("userListCtrl", function ($rootScope, $scope, $uibModalInstance, postId, statType, stats, PostService) {
-
-	$scope.stats = stats;
-
-	$scope.cancel = function () {
-		$uibModalInstance.dismiss('cancel');
-	};
-
-	$scope.showItems = function (type) {
-		$scope.statType = type;
-		if (type == "upvotes") {
-			PostService.getUpvotes(postId, function (rPostUpvotes) {
-				$scope.items = rPostUpvotes;
-			});
-		}
-		if (type == "views") {
-			PostService.getViews(postId, function (rPostViews) {
-				$scope.items = rPostViews;
-			});
-		}
-	};
-
-	if (stats.upvotesCount) {
-		$scope.showItems("upvotes");
+		styleElementsInsertedAtTop.push(styleElement);
+	} else if (options.insertAt === "bottom") {
+		head.appendChild(styleElement);
 	} else {
-		$scope.showItems("views");
+		throw new Error("Invalid value for parameter 'insertAt'. Must be 'top' or 'bottom'.");
+	}
+}
+
+function removeStyleElement(styleElement) {
+	styleElement.parentNode.removeChild(styleElement);
+	var idx = styleElementsInsertedAtTop.indexOf(styleElement);
+	if(idx >= 0) {
+		styleElementsInsertedAtTop.splice(idx, 1);
+	}
+}
+
+function createStyleElement(options) {
+	var styleElement = document.createElement("style");
+	options.attrs.type = "text/css";
+
+	attachTagAttrs(styleElement, options.attrs);
+	insertStyleElement(options, styleElement);
+	return styleElement;
+}
+
+function createLinkElement(options) {
+	var linkElement = document.createElement("link");
+	options.attrs.type = "text/css";
+	options.attrs.rel = "stylesheet";
+
+	attachTagAttrs(linkElement, options.attrs);
+	insertStyleElement(options, linkElement);
+	return linkElement;
+}
+
+function attachTagAttrs(element, attrs) {
+	Object.keys(attrs).forEach(function (key) {
+		element.setAttribute(key, attrs[key]);
+	});
+}
+
+function addStyle(obj, options) {
+	var styleElement, update, remove;
+
+	if (options.singleton) {
+		var styleIndex = singletonCounter++;
+		styleElement = singletonElement || (singletonElement = createStyleElement(options));
+		update = applyToSingletonTag.bind(null, styleElement, styleIndex, false);
+		remove = applyToSingletonTag.bind(null, styleElement, styleIndex, true);
+	} else if(obj.sourceMap &&
+		typeof URL === "function" &&
+		typeof URL.createObjectURL === "function" &&
+		typeof URL.revokeObjectURL === "function" &&
+		typeof Blob === "function" &&
+		typeof btoa === "function") {
+		styleElement = createLinkElement(options);
+		update = updateLink.bind(null, styleElement, options);
+		remove = function() {
+			removeStyleElement(styleElement);
+			if(styleElement.href)
+				URL.revokeObjectURL(styleElement.href);
+		};
+	} else {
+		styleElement = createStyleElement(options);
+		update = applyToTag.bind(null, styleElement);
+		remove = function() {
+			removeStyleElement(styleElement);
+		};
 	}
 
-	$rootScope.$on('$stateChangeStart', function () {
-		$scope.cancel();
-	});
-}).controller("mainController", function ($rootScope, $scope, $state, $sce, $window, $location, $http, ViciAuth, MetaService, PostService, $uibModal) {
-	$http.get("/api/hashtags/trending").then(function (response) {
-		$scope.hashtags = response.data.map(function (item) {
-			return item.hashtag;
-		});
-	});
+	update(obj);
 
-	$scope.showUpvotes = function (feed, statType) {
-		PostService.getUpvotes(feed.id, function (rPostUpvotes) {
-			var modalInstance = $uibModal.open({
-				animation: $scope.animationsEnabled,
-				templateUrl: 'userListModal.html',
-				controller: 'userListCtrl',
-				resolve: {
-					statType: statType,
-					postId: feed.id,
-					stats: function stats() {
-						return {
-							upvotesCount: feed.upvotes_count,
-							viewsCount: feed.views_count,
-							commentsCount: feed.comment_count
-						};
-					},
-					postUpvotes: function postUpvotes() {
-						return rPostUpvotes;
-					}
-				}
-			});
-		});
-	};
-
-	$rootScope.MetaService = MetaService;
-
-	$rootScope.trustSrc = function (src) {
-		return $sce.trustAsResourceUrl(src);
-	};
-
-	$scope.goToPost = function (feed) {
-		$state.go("vicigo.post", {
-			postId: feed.id
-		});
-	};
-
-	$rootScope.fbLogin = function (redirectOnSuccess) {
-		ViciAuth.fbAuth(function (rUser) {
-			$("#loginModal").modal('hide');
-			$rootScope.user = {
-				id: rUser.userId
-			};
-			$state.go("vicigo.feeds");
-		});
-	};
-
-	$rootScope.searchVicigo = function (searchInput) {
-		searchInput = searchInput.toLowerCase();
-		searchInput = searchInput.replace('#', '');
-		searchInput = searchInput.replace('@', '');
-
-		return $http.get('/api/search?q=' + searchInput).then(function (response) {
-			return response.data.map(function (item) {
-				return item;
-			});
-		});
-	};
-
-	$rootScope.searchResultSelected = function ($item) {
-		switch ($item.type) {
-			case "profile":
-				$state.go("vicigo.profile", {
-					profileId: $item.objId
-				});
-				break;
-			case "post":
-				$state.go("vicigo.post", {
-					postId: $item.objId
-				});
-				break;
-			case "hashtag":
-				$state.go("vicigo.hashtag", {
-					hashtag: $item.objId
-				});
-				break;
-			default:
-		}
-	};
-
-	$scope.sort = function (sortType) {
-		if (sortType == $scope.sortType) {
-			$window.location.reload();
+	return function updateStyle(newObj) {
+		if(newObj) {
+			if(newObj.css === obj.css && newObj.media === obj.media && newObj.sourceMap === obj.sourceMap)
+				return;
+			update(obj = newObj);
 		} else {
-			$scope.sortType = sortType;
-			$scope.postsAvailable = true;
-			$location.search('sort', $scope.sortType);
+			remove();
 		}
 	};
+}
 
-	$scope.newPhoto = function () {
-		$('#uploadImageModal').modal('show');
-		$('#uploadedImage').attr('src', null);
-		$(".tags-area").tagit("removeAll");
-		//imageDropzone.removeAllFiles(true);
-		$(".dz-message").removeClass("hidden");
-		$("#uploadedImage").addClass("hidden");
+var replaceText = (function () {
+	var textStore = [];
+
+	return function (index, replacement) {
+		textStore[index] = replacement;
+		return textStore.filter(Boolean).join('\n');
 	};
+})();
 
-	$scope.editPhoto = function (feed) {
-		$('#uploadImageModal').modal('show'); //uploadExternalImageModal
-		$('#uploadedImage').attr('src', feed.image_url);
+function applyToSingletonTag(styleElement, index, remove, obj) {
+	var css = remove ? "" : obj.css;
 
-		$(".dz-message").addClass("hidden");
-		$("#uploadedImage").removeClass("hidden");
-		document.getElementById("publishPicturePostBtn").disabled = false;
-
-		$(".tags-area").tagit("removeAll");
-		feed.hashtags = feed.hashtags ? feed.hashtags : [];
-		for (var index = 0; index < feed.hashtags.length; index++) {
-			$(".tags-area").tagit("createTag", feed.hashtags[index].hashtag);
-		}
-		$("#uploadedImagePostId").val(feed.id);
-
-		imageDropzone.removeAllFiles(true);
-	};
-
-	$scope.displayFeedBody = PostService.displayHTML;
-
-	$scope.getFeedLink = function (feed) {
-		return "/post/" + feed.id;
-	};
-
-	$scope.hasTitle = function (post_type_id) {
-		if (post_type_id == 4) {
-			return false;
+	if (styleElement.styleSheet) {
+		styleElement.styleSheet.cssText = replaceText(index, css);
+	} else {
+		var cssNode = document.createTextNode(css);
+		var childNodes = styleElement.childNodes;
+		if (childNodes[index]) styleElement.removeChild(childNodes[index]);
+		if (childNodes.length) {
+			styleElement.insertBefore(cssNode, childNodes[index]);
 		} else {
-			return true;
+			styleElement.appendChild(cssNode);
 		}
-	};
+	}
+}
 
-	$rootScope.publishPicturePost = function () {
-		var postId = $("#uploadedImagePostId").val();
-		var tags = $("#uploadedPictureTags").val();
-		$('#uploadImageModal').modal('toggle');
+function applyToTag(styleElement, obj) {
+	var css = obj.css;
+	var media = obj.media;
 
-		if (postId) {
-			PostService.publishPic(postId, {
-				hashtags: tags
-			}, function () {
-				$(".dz-message").removeClass("hidden");
-				$('#uploadedImage').attr('src', "");
-				$("#uploadedPictureTags").tagit("removeAll");
-				document.getElementById("publishPicturePostBtn").disabled = true;
-				$(".dz-message").removeClass("hidden");
-				$("#uploadedImage").addClass("hidden");
-			});
+	if(media) {
+		styleElement.setAttribute("media", media)
+	}
+
+	if(styleElement.styleSheet) {
+		styleElement.styleSheet.cssText = css;
+	} else {
+		while(styleElement.firstChild) {
+			styleElement.removeChild(styleElement.firstChild);
 		}
-	};
+		styleElement.appendChild(document.createTextNode(css));
+	}
+}
 
-	$rootScope.logoutMe = function () {
-		ViciAuth.logout();
+function updateLink(linkElement, options, obj) {
+	var css = obj.css;
+	var sourceMap = obj.sourceMap;
 
-		$http.post("/viciauth/logout").then(function (response) {
-			$rootScope.user = false;
-			$rootScope.fetchingNotifs = false;
+	/* If convertToAbsoluteUrls isn't defined, but sourcemaps are enabled
+	and there is no publicPath defined then lets turn convertToAbsoluteUrls
+	on by default.  Otherwise default to the convertToAbsoluteUrls option
+	directly
+	*/
+	var autoFixUrls = options.convertToAbsoluteUrls === undefined && sourceMap;
 
-			$state.go("starter.welcome");
-		});
-	};
-}).controller("postController", function ($rootScope, $stateParams, $http, $scope, $sce, post, RelsService, CommentService) {
-	$scope.postId = post.post_id;
-	$scope.post = post;
+	if (options.convertToAbsoluteUrls || autoFixUrls){
+		css = fixUrls(css);
+	}
 
-	$scope.comments = [];
+	if(sourceMap) {
+		// http://stackoverflow.com/a/26603875
+		css += "\n/*# sourceMappingURL=data:application/json;base64," + btoa(unescape(encodeURIComponent(JSON.stringify(sourceMap)))) + " */";
+	}
 
-	$scope.follow = function (profileId) {
-		if (!$rootScope.user.id) {
-			return $("#loginModal").modal();
+	var blob = new Blob([css], { type: "text/css" });
+
+	var oldSrc = linkElement.href;
+
+	linkElement.href = URL.createObjectURL(blob);
+
+	if(oldSrc)
+		URL.revokeObjectURL(oldSrc);
+}
+
+
+/***/ }),
+/* 23 */
+/***/ (function(module, exports) {
+
+
+/**
+ * When source maps are enabled, `style-loader` uses a link element with a data-uri to
+ * embed the css on the page. This breaks all relative urls because now they are relative to a
+ * bundle instead of the current page.
+ *
+ * One solution is to only use full urls, but that may be impossible.
+ *
+ * Instead, this function "fixes" the relative urls to be absolute according to the current page location.
+ *
+ * A rudimentary test suite is located at `test/fixUrls.js` and can be run via the `npm test` command.
+ *
+ */
+
+module.exports = function (css) {
+  // get current location
+  var location = typeof window !== "undefined" && window.location;
+
+  if (!location) {
+    throw new Error("fixUrls requires window.location");
+  }
+
+	// blank or null?
+	if (!css || typeof css !== "string") {
+	  return css;
+  }
+
+  var baseUrl = location.protocol + "//" + location.host;
+  var currentDir = baseUrl + location.pathname.replace(/\/[^\/]*$/, "/");
+
+	// convert each url(...)
+	var fixedCss = css.replace(/url *\( *(.+?) *\)/g, function(fullMatch, origUrl) {
+		// strip quotes (if they exist)
+		var unquotedOrigUrl = origUrl
+			.replace(/^"(.*)"$/, function(o, $1){ return $1; })
+			.replace(/^'(.*)'$/, function(o, $1){ return $1; });
+
+		// already a full url? no change
+		if (/^(#|data:|http:\/\/|https:\/\/|file:\/\/\/)/i.test(unquotedOrigUrl)) {
+		  return fullMatch;
 		}
-		$scope.post.authorFollowed = true;
-		RelsService.followProfile(profileId);
-	};
 
-	CommentService.getComments($scope.postId, function (rComments) {
-		$scope.comments = rComments;
+		// convert the url to a full url
+		var newUrl;
+
+		if (unquotedOrigUrl.indexOf("//") === 0) {
+		  	//TODO: should we add protocol?
+			newUrl = unquotedOrigUrl;
+		} else if (unquotedOrigUrl.indexOf("/") === 0) {
+			// path should be relative to the base url
+			newUrl = baseUrl + unquotedOrigUrl; // already starts with '/'
+		} else {
+			// path should be relative to current directory
+			newUrl = currentDir + unquotedOrigUrl.replace(/^\.\//, ""); // Strip leading './'
+		}
+
+		// send back the fixed url(...)
+		return "url(" + JSON.stringify(newUrl) + ")";
 	});
 
-	$scope.postComment = function (postId, body) {
-		$scope.commentDraft = "";
-		CommentService.postComment(postId, body, function (rComment) {
-			$scope.comments.unshift(rComment);
-		});
-	};
+	// send back the fixed css
+	return fixedCss;
+};
 
-	$scope.deleteComment = function (postId, commentId, commentIndex) {
-		$scope.comments.splice(commentIndex, 1);
-		CommentService.deleteComment(postId, commentId);
-	};
 
-	$scope.openShareModal = function (postId, commentId, commentIndex) {
-		bootbox.confirm("Are you sure?", function (result) {
-			if (result) {
-				if (isDraft) $scope.drafts.splice($index, 1);else $scope.feeds.splice($index, 1);
-				PostService.removePost(feed.id);
-			}
-		});
-	};
-}).controller("profileBlogsController", function ($scope, $stateParams, $http, HashbookService) {
+/***/ }),
+/* 24 */
+/***/ (function(module, exports) {
 
-	$scope.blogs = [];
-	$scope.profileIdentifier = $stateParams.profileIdentifier;
-	HashbookService.getHashbooks($scope.profileIdentifier, {}, function (rHashbooks) {
-		$scope.blogs = rHashbooks;
-	});
+var g;
 
-	$scope.deleteHashbook = function (blogId, blogSlug, $index) {
+// This works in non-strict mode
+g = (function() {
+	return this;
+})();
 
-		bootbox.prompt("Do you really want to delete this Hashbook? You will not be able to revoke it. Write <b>'" + blogSlug.toUpperCase() + "'</b> to confirm.", function (result) {
-			if (!result) return;
-			if (result.toUpperCase() == blogSlug.toUpperCase()) {
-				bootbox.confirm("Do you really really want irrevocablly to delete it? Sure? Second thoughts?", function (result) {
-					if (result) {
-						$http.delete("/api/hashbook/" + blogSlug);
-						return $scope.blogs.splice($index, 1);
-					} else {
-						return;
-					}
-				});
-			}
-		});
-	};
-}).service("ProfileService", function ($http, API_URL) {
+try {
+	// This works if eval is allowed (see CSP)
+	g = g || Function("return this")() || (1,eval)("this");
+} catch(e) {
+	// This works if the window reference is available
+	if(typeof window === "object")
+		g = window;
+}
 
-	var fetchProfile = function fetchProfile(profileId, callback) {
-		$http.get(API_URL + "/api/profile/" + profileId).then(function (response) {
+// g can still be undefined, but nothing to do about it...
+// We return undefined, instead of nothing here, so it's
+// easier to handle this case. if(!global) { ...}
 
-			callback(response.data);
-		});
-	};
+module.exports = g;
 
-	var fetchProfileStatus = function fetchProfileStatus(query, callback) {
-		$http({
-			url: API_URL + "/api/profile/status",
-			method: "GET",
-			params: {}
-		}).then(function (response) {
-
-			callback(response.data);
-		});
-	};
-
-	var fetchRecommentedProfiles = function fetchRecommentedProfiles(profileId, params, callback) {
-		$http({
-			url: API_URL + "/api/profile/" + profileId + "/recommented/accounts",
-			method: "GET",
-			params: params
-		}).then(function (response) {
-
-			callback(response.data);
-		});
-	};
-
-	return {
-		fetchProfileStatus: fetchProfileStatus,
-		fetchProfile: fetchProfile,
-		fetchRecommentedProfiles: fetchRecommentedProfiles
-	};
-}).controller("discoverController", function ($rootScope, $stateParams, $scope, ProfileService) {
-	ProfileService.fetchRecommentedProfiles($stateParams.profileId, {}, function (rProfiles) {});
-}).controller("notifsController", function ($rootScope, $scope, notifs, $http) {
-	$scope.notifs = notifs;
-	$scope.page = 1;
-	$scope.limit = 30;
-	$rootScope.isLoading = true;
-	$scope.postsAvailable = true;
-
-	$scope.markAllNotifsAsRead = function () {
-		$http.put("/api/notifications/read_all");
-		if ($rootScope.userStatus) {
-			$rootScope.userStatus.notifications_count = 0;
-		}
-		$scope.notifs = $scope.notifs.map(function (item) {
-			item.status = 1;
-			return item;
-		});
-	};
-
-	$scope.markNotifAsRead = function (notif, index) {
-		if (notif.status == 0) {
-			$scope.notifs[index].status = 1;
-			return $http.put("/api/notifications/read_one/" + notif.event_id);
-		}
-	};
-
-	$scope.fetchNotifs = function (page, limit) {
-		$http.get("/api/notifications?page=" + page + "&limit=" + limit).then(function (response) {
-			response.data.forEach(function (feed) {
-				$scope.notifs.push(feed);
-			});
-
-			if (response.data.length < $scope.limit) {
-				$scope.postsAvailable = false;
-			} else {
-				$scope.postsAvailable = true;
-			}
-		});
-	};
-
-	$scope.loadMoreNotifs = function () {
-		if (!$rootScope.activeCalls && $scope.postsAvailable) {
-			$scope.page = $scope.page + 1;
-			$scope.fetchNotifs($scope.page, $scope.limit);
-		}
-	};
-
-	$scope.displayPost = function (notif) {
-		if (notif.event_type == 2 && notif.post_type_id == 4) {
-			return "pic";
-		}
-		if (notif.event_type == 2 && (notif.post_type_id == 3 || notif.post_type_id == 2)) {
-			return 'post "' + notif.post_title + '"';
-		}
-
-		return "post";
-	};
-}).controller("profileController", _ProfileCtrl2.default).controller("editorController", _EditorCtrl2.default).controller("feedsController", _FeedsCtrl2.default).controller("welcomeController", _WelcomeCtrl2.default).controller("draftsController", _DraftsCtrl2.default).run(function ($rootScope, $state, ViciAuth) {
-	$rootScope.$on('$stateChangeStart', function (event, next, nextParams, fromState) {
-		if (next.name == "starter.welcome") {
-			$rootScope.welcome = true;
-		} else {
-			$rootScope.welcome = false;
-		}
-		if (next.name == "starter.login" || next.name == "starter.signup" || next.name == "blog") {
-			$rootScope.noHeader = true;
-		} else {
-			$rootScope.noHeader = false;
-		}
-
-		ViciAuth.validate(function (data) {
-			if (data && data.userId) {
-				var u = {
-					id: data.userId,
-					profileImageUrl: data.profileImageUrl,
-					name: data.name
-				};
-				$rootScope.user = u;
-			} else {
-				$rootScope.user = false;
-				if (next.name == "vicigo.feeds") {
-					$state.go("starter.welcome");
-				}
-			}
-		});
-	});
-}).directive('backImg', function () {
-	return function (scope, element, attrs) {
-		var url = attrs.backImg;
-		element.css({
-			'background-image': 'url(' + url + ')',
-			'background-size': 'cover'
-		});
-	};
-}).directive('fallbackSrc', function () {
-	var fallbackSrc = {
-		link: function postLink(scope, iElement, iAttrs) {
-			iElement.bind('error', function () {
-				angular.element(this).attr("src", iAttrs.fallbackSrc);
-			});
-		}
-	};
-	return fallbackSrc;
-}).directive('feed', _component2.default).directive('postHeader', function () {
-	return {
-		templateUrl: '/templates/directives/postHeader.html'
-	};
-});
 
 /***/ })
 /******/ ]);

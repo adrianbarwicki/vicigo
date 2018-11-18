@@ -46,13 +46,15 @@ app.set('view engine', 'ejs');
 
 app.use(expressLayouts);
 
+/**
 require('./config/passport')(passport);
-
-app.use(cookieParser()); 
-app.use(bodyParser()); 
 app.use(session({ secret: 'ilovevicigo' }));
 app.use(passport.initialize());
 app.use(passport.session());
+*/
+
+app.use(cookieParser()); 
+app.use(bodyParser()); 
 app.use(flash());
 app.use("/js", express.static(__dirname + "/public/js"));
 app.use("/img", express.static(__dirname + "/public/img"));
@@ -61,9 +63,11 @@ app.use("/templates", express.static(__dirname + "/public/templates"));
 app.use("/lib", express.static(__dirname + "/public/lib"));
 app.use('/libs/', express.static(__dirname + '/node_modules'));
 
+/**
 require('./app/policy.js')(app, passport);
 require('./app/api.js')(app, passport); 
 require('./app/routes.js')(app, passport);
+ */
 
 app.use('/libs', express.static(__dirname + '/node_modules'));
 

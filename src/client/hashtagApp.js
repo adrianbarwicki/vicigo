@@ -13,11 +13,14 @@ import routingConfig from './config/routing';
 import httpConfig from './config/http';
 import stateConfig from './config/state';
 import feedComponent from './components/feed/component';
+import AuthModule from './AuthModule';
+
+AuthModule();
 
 var imageDropzone, profilePicDropzone, hashbookBGDropzone;
 var vicigoApp = angular.module("hashtag-app", [ uiRouter, 'ui.bootstrap', infiniteScroll, "dcbImgFallback", "xeditable", "angular-inview", '720kb.socialshare', 'ngDialog', "angular.lazyimg", "ViciAuth"])
 
-.constant("API_URL", "")
+.constant("API_URL", "https://vqsocialmedia.alphateamhackers.com/api")
 .run(function(ngDialog) {
 	(function(d, s, id) {
 		var js, fjs = d.getElementsByTagName(s)[0];

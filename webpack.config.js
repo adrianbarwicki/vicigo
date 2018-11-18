@@ -1,8 +1,8 @@
 module.exports = {
     entry: './src/client/hashtagApp.js',
     output: { 
-        path: './public/js',
-        filename: 'hashtagApp.js'
+        path: __dirname + "/public/js",
+        filename: 'bundle.js'
     },
     module: {
          loaders: [

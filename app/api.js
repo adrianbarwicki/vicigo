@@ -34,7 +34,7 @@ module.exports = function(app) {
 			responseController.sendResponse(res,err,rStats);
 		});
 	});
-	
+
 	app.get('/api/external_services/fb/fetch_photos', isLoggedIn, function(req, res) {
 		var userId = req.user ? req.user.id : null;
 		var sql1 = "SELECT * FROM user_networks WHERE user_id = " + userId;

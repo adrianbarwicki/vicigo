@@ -11,6 +11,11 @@ export default function state ($stateProvider, $urlRouterProvider) {
 			templateUrl: "/templates/welcome.html",
 			controller: "welcomeController",
 		})
+		.state('starter.thankyou', {
+			url: "/thank-you",
+			templateUrl: "/templates/thankyou.html",
+			controller: "welcomeController",
+		})
 		.state('starter.login', {
 			url: "/login?code",
 			templateUrl: "/templates/login.html",
